@@ -1,0 +1,53 @@
+{
+    "$session": [
+        {
+            "session_id": "B7FcJ0FWyGvWNKR3Y9p0YBYAmn7_RFL5vgEoemYOFZqgr6gjWadhsXEWO2avYNpfW353bgg8uacINHUO79jPKA==",
+            "backend": "memory",
+            "cache": true,
+            "encryption": "base64",
+            "timestamp": "2025-08-15 12:38:17"
+        },
+        {
+            "session_id": "kZ1wShe-pXu-lSsshOGxR4vGckF4QxiiTZnnpbQn4lyn8gJNZDk9vmmrZdVxAZ21oZB-HyzqjZ2IYIYZeNnyTQ==",
+            "backend": "memory",
+            "cache": true,
+            "encryption": "base64",
+            "timestamp": "2025-08-15 12:39:08"
+        },
+        {
+            "session_id": "PnI_Vznvp7V620-h3olwW5Byof7HiPCHZ8DacfANANd2Hrtbg8gAWQON3GRaELrdqXwwHsWDBQEKNZ4NAweylg==",
+            "backend": "memory",
+            "cache": true,
+            "encryption": "base64",
+            "timestamp": "2025-08-15 12:42:34"
+        },
+        {
+            "session_id": "ONbp2TI75MaG3EMsR6gZOv8y0X6LbhxeEWZEReCUEI1mwi04L7yaarMiUrx0VsCCWsCYRHFTJahTQYyfNUbkgQ==",
+            "backend": "memory",
+            "cache": true,
+            "encryption": "base64",
+            "timestamp": "2025-08-15 12:56:50"
+        },
+        {
+            "session_id": "9VnUQPEq1WxB9bGWSvWBF_G_KHA4HQEb-lWeqKjGXWatln_Qzz3bk-SzWta84U70OsxKTWRMlZ1nyweZ9N7-0A==",
+            "backend": "memory",
+            "cache": true,
+            "encryption": "base64",
+            "timestamp": "2025-08-15 12:59:23"
+        },
+        {
+            "session_id": "g6Cgd7kXXepIibc1stgUGdAE8VH5YfC8hswzzmos5A3LEqivOGhQjw4t2v3DKkvadsCN5EWfFIXHdFbwR7D-6A==",
+            "backend": "memory",
+            "cache": true,
+            "encryption": "base64",
+            "timestamp": "2025-08-15 13:14:13"
+        },
+        {
+            "session_id": "9XcRQ52BJjh_qQb5zS1hwvxEZG9kC5zfRJRsfq2DttknJf2rebXtsjNkAlW4rbbCkF_laoWSZL3Q2qPu57jplQ==",
+            "backend": "memory",
+            "cache": true,
+            "encryption": "base64",
+            "timestamp": "2025-08-15 14:22:22"
+        }
+    ]
+}

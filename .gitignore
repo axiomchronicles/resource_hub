@@ -1,0 +1,29 @@
+# Node (client)
+client/node_modules
+client/.vite
+client/dist
+client/.env
+client/.env.local
+
+# Python (backend)
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/.aquilify
+backend/venv/
+backend/.pytest_cache
+backend/.mypy_cache
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Misc
+*.swp
