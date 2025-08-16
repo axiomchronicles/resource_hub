@@ -54,7 +54,7 @@ export function useRegisterApi() {
   }
 
   async function register(payload: Record<string, any> | FormData) {
-    const url = "http://localhost:8000/api/auth/register";
+    const url = `${import.meta.env.VITE_API_URL}/auth/register`;
     const fd = buildFormData(payload);
     setIsLoading(true);
     setError(null);
@@ -111,12 +111,22 @@ export function useRegisterApi() {
         throw new Error(msg);
       }
 
-      // server responded with error
       const status = err.response.status;
-      const body = err.response.data;
-      const msg = body?.error ?? body?.message ?? `Request failed with status ${status}`;
-      setError(String(msg));
-      toast({ title: "Registration failed", description: String(msg), variant: "destructive" });
+      const body = err.response.data; // already a JS object
+      const raw = body?.error ?? body?.message ?? `Request failed with status ${status}`;
+      const msg =
+        typeof raw === "string"
+          ? raw
+          : Array.isArray(raw)
+          ? raw.join(", ")
+          : JSON.stringify(raw, null, 2);
+
+      toast({
+        title: "Registration failed",
+        description: msg, // now always a string
+        variant: "destructive",
+      });
+      setError(msg);
       throw { status, body };
     }
   }
@@ -155,13 +165,8 @@ type FormDataShape = {
 };
 
 const UNIVERSITY_SUGGESTIONS = [
-  "MIT",
-  "Stanford University",
-  "Harvard University",
-  "UC Berkeley",
-  "Caltech",
-  "IIT Bombay",
-  "IIT Delhi",
+  "Manav Rachna International Institute Of Research And Studies",
+  "Manav Rachna University",
   "Other"
 ];
 
@@ -324,8 +329,28 @@ export default function Register() {
     return () => clearInterval(t);
   }, [otpResendCooldown]);
 
-  function updateField<K extends keyof FormDataShape>(k: K, v: FormDataShape[K]) {
-    setForm((s) => ({ ...s, [k]: v }));
+  function updateField<K extends keyof FormDataShape>(key: K, value: FormDataShape[K]) {
+    let newValue: any = value;
+
+    // Convert year to int
+    if (key === "year" && typeof value === "string") {
+      newValue = parseInt(value, 10) || 0;
+    }
+
+    // Convert consent to boolean
+    if (key === "consent") {
+      if (typeof value === "string") {
+        newValue = value.toLowerCase() === "true";
+      } else {
+        newValue = Boolean(value);
+      }
+    }
+
+    // Default update
+    setForm((s) => ({
+      ...s,
+      [key]: newValue,
+    }));
   }
 
   function handleFileInput(file?: File | null) {
@@ -434,8 +459,24 @@ export default function Register() {
         setProfilePreview((p) => p); // trigger re-render so animation can use it
       }
     } catch (err: any) {
-      const serverErr = err?.body ?? err?.message ?? err;
-      toast({ title: "Error", description: String(serverErr).slice(0, 200), variant: "destructive" });
+      let msg = "Registration failed";
+
+      // try to extract proper message
+      if (err?.body) {
+        const body = err.body;
+        msg =
+          typeof body === "string"
+            ? body
+            : body?.error
+            ? body.error
+            : body?.message
+            ? body.message
+            : JSON.stringify(body);
+      } else if (err?.message) {
+        msg = err.message;
+      }
+
+      toast({ title: "Error", description: msg, variant: "destructive" });
     }
   }
 
@@ -511,7 +552,7 @@ export default function Register() {
 
     setVerifyLoading(true);
     try {
-      const url = "http://localhost:8000/api/auth/verify/email";
+      const url = `${import.meta.env.VITE_API_URL}/auth/verify/email`;
       // prepare payload: include email + otp + any verificationId if provided by register response
       const payload: Record<string, any> = { email: form.email, otp: otpValue };
       if (verifyContext?.verificationId) payload.verificationId = verifyContext.verificationId;

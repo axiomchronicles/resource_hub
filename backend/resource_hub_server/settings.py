@@ -54,6 +54,7 @@ STATICFILE_DIRS = [
 
 MEDIA_DIRS = [
     os.path.join(BASE_DIR, 'media'),
+    os.path.join(BASE_DIR, 'uploads'),
 ]
 
 MEDIA_URL = "/media/"
@@ -78,11 +79,11 @@ APPLICATION_DISPATCHER = [ ]
 
 TEMPLATES = [
     {
-        "BACKEND": "aquilify.template.jinja2",
+        "BACKEND": "aquilify.template.jinja_template.Jinja2Templates",
         "DIRS": [ os.path.join(BASE_DIR, "templates") ],
         "CSRF": "aquilify.security.csrf.CSRF",
         "OPTIONS": {
-            "autoscape": True,
+            "autoscape": True, 
             "context_processors": [
                 "aquilify.template.context_processors.URLContextProcessor",
                 "aquilify.template.context_processors.CSRFContextView",
@@ -182,8 +183,8 @@ DATABASE = {
 SESSION_BACKEND = 'memory'
 SESSION_SECRET_KEY = SECRET_KEY
 
-SESSION_MAX_AGE = 1800
-SESSION_LIFETIME = 30
+SESSION_MAX_AGE = 2592000
+SESSION_LIFETIME = 43200
 SESSION_SECURE = True
 SESSION_HTTPONLY = True
 SESSION_SAMESITE = "Lax"
@@ -259,3 +260,17 @@ MESSAGE_STORAGE = 'aquilify.core.messages.storage.fallback.FallbackStorage'
 ENVIROMENT = {
     'lxenviroment': ['packlib'] # add all the .lxe file in this list
 }
+
+EMAIL_BACKEND = 'aquilify.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'embrakeproject@gmail.com'  # Your Gmail address
+EMAIL_HOST_PASSWORD = 'jkohyutipglocgck'  # Your Gmail password or App password
+DEFAULT_FROM_EMAIL = 'embrakeproject@gmail.com'
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False  # Do NOT use SSL
+EMAIL_SSL_KEYFILE = None  # Not needed
+EMAIL_SSL_CERTFILE = None  # Not needed
+EMAIL_TIMEOUT = 5
+EMAIL_USE_LOCALTIME = True

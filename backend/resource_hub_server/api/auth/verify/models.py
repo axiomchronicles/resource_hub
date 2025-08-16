@@ -5,7 +5,7 @@ class EmailVerification(syncbit.Schema):
     Schema for email verification in the authentication system.
     """
     email: str = syncbit.fields.String(required=True, extras={"description": "The email address to verify."})
-    verification_code: str = syncbit.fields.String(required=True, extras={"description": "The verification code sent to the user's email."})
+    otp: str = syncbit.fields.String(required=True, extras={"description": "The verification code sent to the user's email."})
 
 class EmailVerificationResponse(syncbit.Schema):
     """

@@ -14,8 +14,8 @@ from .core import ping, list_discussions, create_discussion, create_reply, get_t
 
 ROUTER = [
     rule("/ping", ping, methods=["GET"]),
-    rule("/discus", list_discussions, methods=["GET"]),
-    rule("/discus", create_discussion, methods=["POST"]),
+    rule("/threads", list_discussions, methods=["GET"]),
+    rule("/threads", create_discussion, methods=["POST"]),
     rule("/{thread_id}/replies", create_reply, methods=["POST"]),
     rule("/{thread_id}/replies", get_thread_replies, methods=["GET"]),
     rule("/{thread_id}/like", like_thread, methods=["POST"]),
