@@ -16,5 +16,5 @@ from .verify.emailverification import EmailVerificationView
 
 ROUTER = [
     rule("/register", RegisterAuthHubView.registerhub, name="register_auth_hub", methods=["POST"]),
-    rule("/verify/email", EmailVerificationView.verify_email, name="email_verification", methods=["POST"]),
+    rule("/verify/email", EmailVerificationView.verify, name="email_verification", methods=["POST"]),
 ]

@@ -1,228 +1,360 @@
+"""Email verification handler — typed, safe, resilient.
+
+Responsibilities:
+- Verify OTP for a given user/email
+- Resend OTP with per-session and per-user rate limiting
+- Robust attempt counting & lockout
+- Clear, consistent state transitions in `otp` & `status`
+- Thorough error handling
+
+Assumptions:
+- Users are stored in `connection.shallowuserregistration`
+- `otp` subdoc on user matches structure created in RegisterAuthHub
+- Template path: "email_templates/email_verification.html"
+
+Dependencies:
+- aquilify Request & responses
+- exception.BaseApiException(message: str, status_code: int)
+- utils.mailer.send_email(subject, message, recipient, context, template)
+- axiomelectrus FieldOp for $datetime
+"""
 from __future__ import annotations
 
-import logging
-import inspect
 import ast
-from datetime import datetime, timezone
+import asyncio
+import logging
+import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 from aquilify.wrappers import Request
+from aquilify.core.backend.sessions.localsessions import SessionManager
 from aquilify import responses
 
-from .models import EmailVerification as EmailVerificationModel
+from axiomelectrus.partials.insert import FieldOp
 
-# imports used elsewhere in your project; adapt path if needed
 from ... import exception, connection
+from ..utils import mailer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-async def _try_db_update(collection, filt: Dict[str, Any], update: Dict[str, Any]):
-    """
-    Try common update method names on the collection object and return result.
-    Handles both synchronous and awaitable update methods.
-    Raises AttributeError if no update method found or propagates underlying errors.
-    """
-    for name in ("updateOne", "update_one", "update"):
-        fn = getattr(collection, name, None)
-        if callable(fn):
-            result = fn(filt, update)
-            if inspect.isawaitable(result):
-                result = await result
-            logger.info(
-                "DB update called: filter=%s update=%s result=%s",
-                filt,
-                update,
-                getattr(result, "raw_result", result)
+# ---------------------------
+# Config
+# ---------------------------
+@dataclass(frozen=True)
+class Config:
+    OTP_EXPIRES_MINUTES: int = 10
+    OTP_VERIFY_MAX_ATTEMPTS: int = 5          # per-user verify attempts before lockout
+    OTP_RESEND_MAX_PER_SESSION: int = 5       # per-session resend limit
+    OTP_RESEND_COOLDOWN_SECONDS: int = 30     # min gap between resends for a single user
+    MAIL_RETRY_ATTEMPTS: int = 3
+    MAIL_RETRY_DELAY_SECONDS: float = 0.5
+
+cfg = Config()
+
+
+# ---------------------------
+# Helpers
+# ---------------------------
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _to_iso(dt: datetime) -> str:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
+def _parse_iso(ts: str | None) -> Optional[datetime]:
+    if not ts:
+        return None
+    try:
+        # datetime.fromisoformat handles offsets
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _constant_time_eq(a: str, b: str) -> bool:
+    try:
+        return secrets.compare_digest(a, b)
+    except Exception:
+        return False
+
+
+def _generate_otp() -> str:
+    # 6-digit numeric, cryptographically strong
+    return f"{secrets.randbelow(900000) + 100000:06d}"
+
+
+async def _send_email_with_retries(subject: str, message: str, recipient: str, context: Dict[str, Any], attempts: int = cfg.MAIL_RETRY_ATTEMPTS) -> bool:
+    last_exc: Optional[Exception] = None
+    for attempt in range(1, attempts + 1):
+        try:
+            result = await asyncio.to_thread(
+                mailer.send_email,
+                subject,
+                message,
+                recipient,
+                context,
+                "email_templates/email_verification.html",
             )
-            return result
+            if result:
+                return True
+            last_exc = Exception("mailer.send_email returned falsy")
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("Mailer attempt %d failed: %s", attempt, exc)
+            await asyncio.sleep(cfg.MAIL_RETRY_DELAY_SECONDS * attempt)
+    logger.exception("All mail attempts failed: %s", last_exc)
+    return False
 
-    raise AttributeError("No supported update method found on collection object.")
 
+# ---------------------------
+# Main handler
+# ---------------------------
 class EmailVerification:
-    """
-    Handles the email verification process for users.
-    """
+    def __init__(self) -> None:
+        self.cfg = cfg
+        self.session = SessionManager()
+        self.logger = logger
 
-    async def verify_email(self, request: Request):
-        """
-        Expected JSON payload:
-        {
-            "email": "user@example.com",
-            "otp": "123456",
-            "verificationId": "optional",
-            "tempToken": "optional"
-        }
-        """
+    # ---------- Verify OTP ----------
+    async def verify(self, request: Request) -> responses.JsonResponse:
         try:
-            formData = await request.json()
-            modelData = EmailVerificationModel(formData)
-        except Exception as e:
-            logger.warning("Invalid verification payload: %s", e)
-            return responses.JsonResponse(content={"error": "Invalid request payload"}, status=400)
-
-        email = getattr(modelData, "email", None)
-        otp = getattr(modelData, "otp", None)
-
-        if not email or not otp:
-            return responses.JsonResponse(content={"error": "Missing email or otp"}, status=400)
-
-        # Helper: parse ISO expiry -> always return an aware UTC datetime or None
-        def _parse_iso(s: Optional[str]) -> Optional[datetime]:
-            if not s:
-                return None
-            try:
-                # accept both with/without Z
-                dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
-                if dt.tzinfo is None:
-                    # treat naive timestamps as UTC
-                    return dt.replace(tzinfo=timezone.utc)
-                # normalize to UTC
-                return dt.astimezone(timezone.utc)
-            except Exception:
-                return None
-
-        # 1) Fast path: check session-stored registration data
-        session_data = request.session.get("user_registration_data")
-        session_data = ast.literal_eval(session_data) if isinstance(session_data, str) else session_data
-        if session_data and session_data.get("email") == email:
-            otp_obj = session_data.get("otp") or {}
-            session_code = otp_obj.get("code")
-            session_expires = _parse_iso(otp_obj.get("expiresAt"))
-            max_count = int(otp_obj.get("maxCount", 5) or 5)
-            attempt_count = int(otp_obj.get("count", 0) or 0)
-
-            if otp_obj.get("isVerified"):
-                return responses.JsonResponse(content={"message": "Email already verified."}, status=200)
-
-            # expiry check (use aware UTC now)
-            now_utc = datetime.now(timezone.utc)
-            if session_expires and now_utc > session_expires:
-                return responses.JsonResponse(content={"error": "OTP expired. Request a new one."}, status=400)
-
-            # check code
-            if str(session_code) == str(otp):
-                # mark verified in DB and session
-                try:
-                    # update DB by email or userId if available
-                    user_filter = {"email": email}
-                    if session_data.get("userId"):
-                        user_filter = {"userId": session_data["userId"]}
-
-                    update_doc = {
-                        "$set": {
-                            "otp.isVerified": True,
-                            "otp.isUsed": True,
-                            # store DB-facing timestamps as formatted strings
-                            "otp.usedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-                            "status.isEmailVerified": True,
-                            "timestamps.updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-                        }
-                    }
-                    update_res = await _try_db_update(connection.shallowuserregistration, user_filter, update_doc)
-                    logger.info("Fast-path DB update result for %s: %s", email, getattr(update_res, "raw_result", update_res))
-                except Exception:
-                    logger.exception("Failed to update user record to verified for %s", email)
-                    # don't fail the verification entirely for DB update failure; still mark session verified
-
-                # update session (keep ISO format for session storage)
-                session_data["otp"]["isVerified"] = True
-                session_data["otp"]["isUsed"] = True
-                session_data["otp"]["usedAt"] = datetime.now(timezone.utc).isoformat()
-                request.session["user_registration_data"] = session_data
-
-                return responses.JsonResponse(content={"message": "Email verification successful"}, status=200)
-            else:
-                # increment attempt count and maybe expire
-                attempt_count += 1
-                session_data["otp"]["count"] = attempt_count
-                if attempt_count >= max_count:
-                    session_data["otp"]["isExpired"] = True
-                request.session["user_registration_data"] = session_data
-                return responses.JsonResponse(content={"error": "Invalid OTP"}, status=401)
-
-        # 2) Fallback: lookup user in DB by email (and optional verificationId/tempToken if used)
-        try:
-            # find user by email
-            user_lookup = await connection.shallowuserregistration.find().where(email=email).execute()
+            data = await request.json()
         except Exception:
-            logger.exception("DB lookup failed while verifying email for %s", email)
-            return responses.JsonResponse(content={"error": "Server error"}, status=500)
+            data = {}
+        email: Optional[str] = (data.get("email") if isinstance(data, dict) else None) or request.session.get("user_registration_data", {}).get("email")
+        code: Optional[str] = (data.get("otp") if isinstance(data, dict) else None)
 
-        if not user_lookup:
-            return responses.JsonResponse(content={"error": "User not found"}, status=404)
+        if not email:
+            return responses.JsonResponse(content={"error": "Email is required."}, status=400)
+        if not code or len(code) != 6:
+            return responses.JsonResponse(content={"error": "Invalid OTP code."}, status=400)
 
-        # `user_lookup` might be a wrapper; try pulling actual doc
-        user = user_lookup if isinstance(user_lookup, dict) else getattr(user_lookup, "doc", None) or user_lookup
+        # Load the user by email
+        try:
+            user = await connection.shallowuserregistration.find().where(email = email).execute()
+        except Exception as exc:
+            self.logger.exception("DB error while fetching user for verify: %s", exc)
+            return responses.JsonResponse(content={"error": "Server error."}, status=500)
 
-        # attempt to find OTP object inside user document
-        otp_obj = user.get("otp") if isinstance(user, dict) else None
-        if not otp_obj:
-            return responses.JsonResponse(content={"error": "No OTP found for this user"}, status=400)
+        if not user.acknowledged:
+            return responses.JsonResponse(content={"error": "User not found."}, status=404)
+        
+        user = user.raw_result[0] if isinstance(user.raw_result, list) else user.raw_result
 
-        # already verified?
-        if otp_obj.get("isVerified"):
+        otp: Dict[str, Any] = (user.get("otp") or {})
+        status_doc: Dict[str, Any] = (user.get("status") or {})
+
+        # Already verified?
+        if status_doc.get("isEmailVerified") is True or otp.get("isVerified") is True or otp.get("isUsed") is True:
             return responses.JsonResponse(content={"message": "Email already verified."}, status=200)
 
-        code = str(otp_obj.get("code", ""))
-        expires_at = _parse_iso(otp_obj.get("expiresAt"))
-        count = int(otp_obj.get("count", 0) or 0)
-        max_count = int(otp_obj.get("maxCount", 5) or 5)
+        # Attempt / lockout checks
+        attempts = int(otp.get("count") or 0)
+        max_attempts = int(otp.get("maxCount") or self.cfg.OTP_VERIFY_MAX_ATTEMPTS)
+        if attempts >= max_attempts:
+            return responses.JsonResponse(content={"error": "Maximum verification attempts exceeded. Please request a new OTP."}, status=429)
 
-        # check expiry
-        now_utc = datetime.now(timezone.utc)
-        if expires_at and now_utc > expires_at:
-            # mark expired in DB
+        # Expiry check
+        expires_at = _parse_iso(otp.get("expiresAt"))
+        if not expires_at or _now_utc() > expires_at:
+            # mark expired
             try:
-                await _try_db_update(
-                    connection.shallowuserregistration,
+                await connection.shallowuserregistration.update(
                     {"email": email},
                     {"$set": {"otp.isExpired": True, "timestamps.updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}},
                 )
             except Exception:
-                logger.exception("Failed to mark OTP expired for %s", email)
-            return responses.JsonResponse(content={"error": "OTP expired. Request a new one."}, status=400)
+                self.logger.exception("Failed to mark OTP expired for %s", email)
+            return responses.JsonResponse(content={"error": "OTP has expired. Please request a new OTP."}, status=410)
 
-        # verify code
-        if str(otp) != code:
-            # increment count and possibly expire
-            new_count = count + 1
-            ops = {"$set": {"otp.count": new_count, "timestamps.updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}}
-            if new_count >= max_count:
-                ops["$set"]["otp.isExpired"] = True
+        # Compare
+        stored_code = str(otp.get("code") or "")
+        if not _constant_time_eq(stored_code, code):
+            # increment attempts
             try:
-                await _try_db_update(connection.shallowuserregistration, {"email": email}, ops)
+                await connection.shallowuserregistration.update(
+                    {"email": email},
+                    {"$inc": {"otp.count": 1}, "$set": {"timestamps.updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}},
+                )
             except Exception:
-                logger.exception("Failed to increment OTP count for %s", email)
-            return responses.JsonResponse(content={"error": "Invalid OTP"}, status=401)
+                self.logger.exception("Failed to increment OTP attempts for %s", email)
+            return responses.JsonResponse(content={"error": "Incorrect OTP."}, status=400)
 
-        # success: mark verified
+        # Success — mark verified & consume OTP
         try:
-            update_doc = {
+            update = {
                 "$set": {
                     "otp.isVerified": True,
                     "otp.isUsed": True,
-                    "otp.usedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+                    "otp.isExpired": False,
                     "status.isEmailVerified": True,
                     "timestamps.updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
-                }
+                },
+                "$unset": {"otp.code": "", "otp.expiresAt": ""},  # no longer needed
             }
-            update_res = await _try_db_update(connection.shallowuserregistration, {"email": email}, update_doc)
-            logger.info("Fallback DB update result for %s: %s", email, getattr(update_res, "raw_result", update_res))
+            result = await connection.shallowuserregistration.update({"email": email}, update)
+            if not getattr(result, "acknowledged", True):
+                return responses.JsonResponse(content={"error": "Failed to mark email verified."}, status=500)
+        except Exception as exc:
+            self.logger.exception("DB error while marking verified: %s", exc)
+            return responses.JsonResponse(content={"error": "Server error while updating verification state."}, status=500)
+
+        # Update session best-effort
+        try:
+            sess = request.session.get("user_registration_data") or {}
+            sess["otp"] = {"isVerified": True, "isUsed": True, "isExpired": False}
+            sess.setdefault("updatedAt", _to_iso(_now_utc()))
+            request.session["user_registration_data"] = sess
         except Exception:
-            logger.exception("Failed to update user record as verified for %s", email)
-            return responses.JsonResponse(content={"error": "Server error while verifying"}, status=500)
+            self.logger.exception("Failed to update session after verify for %s", email)
 
-        # Optionally, refresh session if present
-        if request.session.get("user_registration_data") and request.session["user_registration_data"].get("email") == email:
-            sd = request.session["user_registration_data"]
-            sd["otp"]["isVerified"] = True
-            sd["otp"]["isUsed"] = True
-            sd["otp"]["usedAt"] = datetime.now(timezone.utc).isoformat()
-            request.session["user_registration_data"] = sd
- 
-        return responses.JsonResponse(content={"message": "Email verification successful"}, status=200)
+        return responses.JsonResponse(content={"message": "Email verified successfully."}, status=200)
+
+    # ---------- Resend OTP ----------
+    async def resend(self, request: Request) -> responses.JsonResponse:
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        email: Optional[str] = (data.get("email") if isinstance(data, dict) else None) or request.session.get("user_registration_data", {}).get("email")
+
+        if not email:
+            return responses.JsonResponse(content={"error": "Email is required."}, status=400)
+
+        # Per-session rate limit
+        session_key = "otp_resend_count"
+        last_sent_key = "otp_last_sent_at"
+        resend_count = int(request.session.get(session_key) or 0)
+        if resend_count >= self.cfg.OTP_RESEND_MAX_PER_SESSION:
+            return responses.JsonResponse(content={"error": "OTP resend limit reached for this session."}, status=429)
+
+        last_sent_iso = request.session.get(last_sent_key)
+        if last_sent_iso:
+            last_sent = _parse_iso(last_sent_iso)
+            if last_sent and (_now_utc() - last_sent).total_seconds() < self.cfg.OTP_RESEND_COOLDOWN_SECONDS:
+                return responses.JsonResponse(content={"error": "Please wait before requesting another OTP."}, status=429)
+
+        # Load user
+        try:
+            user = await connection.shallowuserregistration.find().where(email = email).execute()
+        except Exception as exc:
+            self.logger.exception("DB error while fetching user for resend: %s", exc)
+            return responses.JsonResponse(content={"error": "Server error."}, status=500)
+
+        if not user.acknowledged:
+            return responses.JsonResponse(content={"error": "User not found."}, status=404)
+        
+        user = user.raw_result[0] if isinstance(user.raw_result, list) else user.raw_result
+
+        status_doc: Dict[str, Any] = (user.get("status") or {})
+        if status_doc.get("isEmailVerified") is True:
+            return responses.JsonResponse(content={"message": "Email already verified."}, status=200)
+
+        # Generate new OTP & expiry, reset attempt counter/state
+        new_code = _generate_otp()
+        new_expiry = _to_iso(_now_utc() + timedelta(minutes=self.cfg.OTP_EXPIRES_MINUTES))
+
+        update = {
+            "$set": {
+                "otp.code": new_code,
+                "otp.expiresAt": new_expiry,
+                "otp.isVerified": False,
+                "otp.isUsed": False,
+                "otp.isExpired": False,
+                "timestamps.updatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            },
+            "$setOnInsert": {},
+            "$unset": {},
+            "$rename": {},
+        }
+        # Reset attempts when resending
+        update["$set"]["otp.count"] = 0
+        update["$set"]["otp.maxCount"] = int((user.get("otp") or {}).get("maxCount") or self.cfg.OTP_VERIFY_MAX_ATTEMPTS)
+
+        try:
+            result = await connection.shallowuserregistration.update({"email": email}, update)
+            if not getattr(result, "acknowledged", True):
+                return responses.JsonResponse(content={"error": "Failed to issue new OTP."}, status=500)
+        except Exception as exc:
+            self.logger.exception("DB error while updating OTP for resend: %s", exc)
+            return responses.JsonResponse(content={"error": "Server error while issuing OTP."}, status=500)
+
+        # Email
+        context = {
+            "firstName": (user.get("name") or {}).get("firstName") or "",
+            "lastName": (user.get("name") or {}).get("lastName") or "",
+            "otpCode": new_code,
+            "expiresAt": new_expiry,
+        }
+
+        ok = await _send_email_with_retries(
+            subject="Email Verification for Resource Hub",
+            message="Please verify your email address.",
+            recipient=email,
+            context=context,
+        )
+        if not ok:
+            return responses.JsonResponse(content={"error": "Failed to send verification email."}, status=500)
+
+        # Update session counters
+        try:
+            request.session[session_key] = resend_count + 1
+            request.session[last_sent_key] = _to_iso(_now_utc())
+            sess = request.session.get("user_registration_data") or {}
+            sess["otp"] = {"code": "******", "expiresAt": new_expiry, "isVerified": False}
+            request.session["user_registration_data"] = sess
+        except Exception:
+            self.logger.exception("Failed to update session after resend for %s", email)
+
+        return responses.JsonResponse(content={"message": "A new OTP has been sent to your email."}, status=200)
+
+    # ---------- Status (optional helper) ----------
+    async def status(self, request: Request) -> responses.JsonResponse:
+        """Return current email verification status for the session user or a provided email."""
+        try:
+            data = await request.json()
+        except Exception:
+            data = {}
+        email: Optional[str] = (data.get("email") if isinstance(data, dict) else None) or request.session.get("user_registration_data", {}).get("email")
+        if not email:
+            return responses.JsonResponse(content={"error": "Email is required."}, status=400)
+        try:
+            user = await connection.shallowuserregistration.find().where(email = email).execute()
+        except Exception as exc:
+            self.logger.exception("DB error while fetching user for status: %s", exc)
+            return responses.JsonResponse(content={"error": "Server error."}, status=500)
+        if not user.acknowledged:
+            return responses.JsonResponse(content={"error": "User not found."}, status=404)
+        user = user.raw_result[0] if isinstance(user.raw_result, list) else user.raw_result
+        otp = user.get("otp") or {}
+        status_doc = user.get("status") or {}
+        return responses.JsonResponse(
+            content={
+                "email": email,
+                "isEmailVerified": bool(status_doc.get("isEmailVerified")),
+                "otp": {
+                    "isVerified": bool(otp.get("isVerified")),
+                    "isExpired": bool(otp.get("isExpired")),
+                    "isUsed": bool(otp.get("isUsed")),
+                    "attempts": int(otp.get("count") or 0),
+                    "maxAttempts": int(otp.get("maxCount") or cfg.OTP_VERIFY_MAX_ATTEMPTS),
+                    "expiresAt": otp.get("expiresAt"),
+                },
+            }
+        )
 
 
+# module-level singleton for import
 EmailVerificationView = EmailVerification()

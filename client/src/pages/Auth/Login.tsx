@@ -1,39 +1,40 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Github, Chrome } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
+import { loginUser } from "../../api/authService";
+import { useAuth } from "../../context/AuthContext";
+import { toast } from "sonner";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await loginUser({ email, password });
+      login(response.token, response.user);
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast.error(error.message || "An unexpected error occurred.");
+    } finally {
       setIsLoading(false);
-      toast({
-        title: "Welcome back!",
-        description: "You have been successfully logged in.",
-      });
-    }, 2000);
+    }
   };
 
   const handleSocialLogin = (provider: string) => {
-    toast({
-      title: `${provider} Login`,
-      description: `Redirecting to ${provider} authentication...`,
-    });
+    toast.info(`Redirecting to ${provider} authentication...`);
   };
 
   return (
@@ -46,7 +47,6 @@ export default function Login() {
       >
         <Card className="glass border-white/20 overflow-hidden">
           <div className="p-8">
-            {/* Header */}
             <div className="text-center mb-8">
               <motion.div
                 initial={{ scale: 0 }}
@@ -62,7 +62,6 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Social Login */}
             <div className="space-y-3 mb-6">
               <Button
                 variant="outline"
@@ -91,7 +90,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium">
@@ -176,7 +174,6 @@ export default function Login() {
               </Button>
             </form>
 
-            {/* Footer */}
             <div className="text-center mt-6">
               <p className="text-sm text-muted-foreground">
                 Don't have an account?{" "}

@@ -230,3 +230,90 @@ All colors MUST be HSL. Beautiful gradients and modern SaaS aesthetic.
     transform: scale(1);
   }
 }
+
+/* ===== Calm Theme Tokens ===== */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+    --radius: 14px;
+  }
+
+  .dark {
+    /* CALM DARK — not pitch black, low-glare, gentle contrast */
+    --background: 222 22% 10%;         /* slate-900-ish */
+    --foreground: 210 40% 96%;
+
+    --card: 222 20% 12%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 20% 12%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 221 83% 60%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 222 16% 16%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 223 14% 18%;
+    --muted-foreground: 225 6% 72%;
+
+    --accent: 221 18% 18%;
+    --accent-foreground: 210 40% 96%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 223 10% 24%;
+    --input: 223 10% 24%;
+    --ring: 221 83% 60%;
+  }
+
+  /* Apply to body/html via shadcn utilities */
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
+/* Smooth theme blending on toggle */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-switching, .theme-switching * {
+    transition:
+      background-color 550ms cubic-bezier(.2,.8,.2,1),
+      color            550ms cubic-bezier(.2,.8,.2,1),
+      border-color     550ms cubic-bezier(.2,.8,.2,1),
+      fill             550ms cubic-bezier(.2,.8,.2,1),
+      stroke           550ms cubic-bezier(.2,.8,.2,1) !important;
+  }
+}
+

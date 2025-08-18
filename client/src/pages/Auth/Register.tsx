@@ -54,7 +54,7 @@ export function useRegisterApi() {
   }
 
   async function register(payload: Record<string, any> | FormData) {
-    const url = `${import.meta.env.VITE_API_URL}/auth/register`;
+    const url = `${import.meta.env.VITE_API_URL}/auth/register/`;
     const fd = buildFormData(payload);
     setIsLoading(true);
     setError(null);
@@ -552,9 +552,9 @@ export default function Register() {
 
     setVerifyLoading(true);
     try {
-      const url = `${import.meta.env.VITE_API_URL}/auth/verify/email`;
+      const url = `${import.meta.env.VITE_API_URL}/auth/verify/email/`;
       // prepare payload: include email + otp + any verificationId if provided by register response
-      const payload: Record<string, any> = { email: form.email, otp: otpValue };
+      const payload: Record<string, any> = { email: form.email, code: otpValue };
       if (verifyContext?.verificationId) payload.verificationId = verifyContext.verificationId;
       if (verifyContext?.tempToken) payload.tempToken = verifyContext.tempToken;
 
@@ -568,7 +568,7 @@ export default function Register() {
       setOtpOpen(false);
 
       // small delay to let toast show and UI settle
-      setTimeout(() => navigate("/home"), 300);
+      setTimeout(() => navigate("/login"), 300);
     } catch (err: any) {
       setVerifyLoading(false);
       // network / no response
@@ -594,8 +594,8 @@ export default function Register() {
     toast({ title: "OTP resent", description: "Check your email again." });
 
     // OPTIONAL: hit backend endpoint to resend (example)
-    // axios.post("http://localhost:8000/api/auth/resend-otp", { email: form.email, verificationId: verifyContext?.verificationId })
-    //   .catch(() => toast({ title: "Resend failed", description: "Could not resend OTP.", variant: "destructive" }));
+    axios.post(`${import.meta.env.VITE_API_URL}/auth/resend-otp/`, { email: form.email, verificationId: verifyContext?.verificationId })
+    .catch(() => toast({ title: "Resend failed", description: "Could not resend OTP.", variant: "destructive" }));
   }
 
   return (
@@ -1067,7 +1067,12 @@ export default function Register() {
                       maxLength={1}
                       inputMode="numeric"
                       pattern="\d*"
-                      className="w-12 h-12 rounded-md bg-white/5 text-center text-lg font-medium focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-12 h-12 rounded-2xl border border-blue-300/50 bg-background text-center text-lg font-bold text-foreground 
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+           hover:border-blue-400 
+           focus:shadow-md focus:shadow-blue-500/20 
+           transition-all duration-200 ease-in-out"
+
                       aria-label={`OTP digit ${i + 1}`}
                     />
                   ))}
