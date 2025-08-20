@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -31,6 +31,91 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
+
+// Indigo + Aurora FX
+
+
+// ------------------
+// Design tokens (shared with Login)
+// ------------------
+const filledBtn =
+  "bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600 text-white shadow-[0_10px_30px_-10px_rgba(79,70,229,0.7)] ring-1 ring-black/5 dark:ring-white/10 border-0 hover:opacity-95 transition-all";
+const iconBtn = `${filledBtn} !w-10 !h-10 p-0 rounded-xl`;
+const gradientOutline =
+  "relative bg-transparent text-slate-700 dark:text-indigo-200 border border-slate-300/40 dark:border-indigo-300/20 before:absolute before:inset-0 before:rounded-[inherit] before:p-[1px] before:bg-gradient-to-r before:from-indigo-500/40 before:via-fuchsia-500/40 before:to-cyan-500/40 before:-z-10";
+const subText = "text-slate-700/80 dark:text-indigo-200/75";
+const titleText = "text-slate-900 dark:text-indigo-100";
+const h1Grad =
+  "bg-clip-text text-transparent bg-[length:200%_100%] bg-gradient-to-r from-indigo-700 via-indigo-800 to-cyan-700 dark:from-indigo-200 dark:via-indigo-400 dark:to-cyan-200";
+
+
+/* ------------------------------ SVG FX & Backdrops ------------------------------ */
+const FXDefs = React.memo(function FXDefs() {
+  const uid = useId().replace(/:/g, "");
+  const gooId = `indigo-goo-${uid}`;
+  const glowId = `soft-glow-${uid}`;
+  return (
+    <svg className="absolute pointer-events-none w-0 h-0">
+      <defs>
+        <filter id={gooId}>
+          <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur" />
+          <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10" result="goo" />
+          <feBlend in="SourceGraphic" in2="goo" />
+        </filter>
+        <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+          <feMerge>
+            <feMergeNode in="coloredBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <desc data-goo-id={gooId} data-glow-id={glowId} />
+    </svg>
+  );
+});
+
+const IndigoBackdrop = React.memo(function IndigoBackdrop({ reduceMotion = false, playing = true }: { reduceMotion?: boolean; playing?: boolean }) {
+  const svg = document?.querySelector("desc[data-goo-id]") as HTMLElement | null;
+  const gooId = svg?.getAttribute("data-goo-id") ?? undefined;
+  const glowId = svg?.getAttribute("data-glow-id") ?? undefined;
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden [perspective:1200px]">
+      <div className="absolute inset-0 mix-blend-screen" style={gooId ? { filter: `url(#${gooId})` } : undefined}>
+        <div className={`gpu absolute top-[-10%] left-[12%] h-[18rem] w-[18rem] rounded-full blur-3xl bg-[radial-gradient(closest-side,rgba(99,102,241,0.6),transparent_70%)] ${playing && !reduceMotion ? "animate-slow-float" : ""}`} />
+        <div className={`gpu absolute bottom-[-10%] right-[12%] h-[22rem] w-[22rem] rounded-full blur-3xl bg-[radial-gradient(closest-side,rgba(34,211,238,0.35),transparent_70%)] ${playing && !reduceMotion ? "animate-slower-float" : ""}`} />
+      </div>
+      <div className="gpu absolute bottom-[-14%] left-1/2 h-[38vh] w-[140vw] -translate-x-1/2 origin-top" style={{ transform: "rotateX(60deg) translateZ(-100px)" }}>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.10)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.10)_1px,transparent_1px)] [background-size:36px_36px]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+      </div>
+      {!reduceMotion && <ParticleFieldCSS count={14} glowId={glowId} />}
+      <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle,white_1px,transparent_1.2px)] [background-size:18px_18px]" />
+    </div>
+  );
+});
+
+function ParticleFieldCSS({ count = 14, glowId }: { count?: number; glowId?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [playing, setPlaying] = useState(true);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setPlaying(entry.isIntersecting), { threshold: 0.05 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  const particles = useMemo(() => Array.from({ length: count }).map((_, i) => ({
+    id: i, top: Math.random() * 100, left: Math.random() * 100, size: Math.random() * 2 + 1, d: Math.random() * 3 + 3, delay: Math.random() * 3,
+  })), [count]);
+  return (
+    <div ref={ref} className="absolute inset-0">
+      {particles.map((p) => (
+        <span key={p.id} className="gpu absolute rounded-full bg-white/70 animate-floatY" style={{ top: `${p.top}%`, left: `${p.left}%`, width: `${p.size}px`, height: `${p.size}px`, filter: glowId ? `url(#${glowId})` : undefined, animationDuration: `${p.d}s`, animationDelay: `${p.delay}s`, animationPlayState: playing ? "running" : "paused" }} />
+      ))}
+    </div>
+  );
+}
+
 
 // ------------------
 // Helper hook: useRegisterApi (axios)
@@ -599,7 +684,11 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-background via-background to-primary/5 p-4">
+    <div className="relative min-h-screen w-full p-4 overflow-hidden flex items-start">
+      {/* Indigo + Aurora backdrop */}
+      <FXDefs />
+      <IndigoBackdrop />
+
       {/* Top upload progress bar */}
       <AnimatePresence>
         {apiLoading && (
@@ -614,24 +703,24 @@ export default function Register() {
                 initial={false}
                 animate={{ width: `${progress}%` }}
                 transition={{ ease: "easeOut", duration: 0.3 }}
-                className="h-1 bg-gradient-to-r from-primary to-rose-500"
+                className="h-1 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600"
               />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-5xl mx-auto">
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-5xl mx-auto relative z-10">
         <Card className="glass border-white/20 overflow-hidden p-6">
           {/* Header + Progress */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-4">
-              <motion.div layout initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center">
+              <motion.div layout initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-16 h-16 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600 rounded-2xl flex items-center justify-center">
                 <GraduationCap className="w-8 h-8 text-white" />
               </motion.div>
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold">Create your student account</h1>
-                <p className="text-sm text-muted-foreground">Share notes, past papers & collaborate with classmates.</p>
+                <h1 className={`text-2xl md:text-3xl font-bold ${h1Grad}`}>Create your student account</h1>
+                <p className={`text-sm ${subText}`}>Share notes, past papers & collaborate with classmates.</p>
               </div>
             </div>
 
@@ -639,7 +728,7 @@ export default function Register() {
               <div className="flex items-center justify-between text-sm mb-2">
                 <div className="flex items-center gap-2">
                   <Info className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Profile completeness</span>
+                  <span className={`text-xs ${subText}`}>Profile completeness</span>
                 </div>
                 <div className="text-xs font-medium">{completion}%</div>
               </div>
@@ -648,7 +737,7 @@ export default function Register() {
                   initial={false}
                   animate={{ width: `${completion}%` }}
                   transition={{ ease: "easeOut", duration: 0.6 }}
-                  className="h-2 bg-gradient-to-r from-primary to-rose-500"
+                  className="h-2 bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600"
                 />
               </div>
             </div>
@@ -659,7 +748,7 @@ export default function Register() {
             <div className="space-y-4 md:col-span-1">
               <div
                 ref={dropRef}
-                className={`rounded-lg border-2 p-4 border-dashed ${dragActive ? "border-primary/80 bg-primary/5" : "border-white/10"} text-center`}
+                className={`rounded-lg border-2 p-4 border-dashed ${dragActive ? "border-indigo-400/80 bg-indigo-400/10" : "border-white/10"} text-center`}
                 aria-label="Profile picture upload"
               >
                 <div className="flex flex-col items-center">
@@ -699,7 +788,7 @@ export default function Register() {
                     />
 
                     <Button
-                      variant="outline"
+                      className={`${gradientOutline} px-3 py-2`}
                       size="sm"
                       type="button"
                       onClick={() => document.getElementById("profilePicInput")?.click()}
@@ -708,7 +797,7 @@ export default function Register() {
                     </Button>
 
                     <Button
-                      variant="ghost"
+                      className={`${gradientOutline} px-3 py-2`}
                       size="sm"
                       type="button"
                       onClick={() => handleFileInput(null)}
@@ -718,25 +807,25 @@ export default function Register() {
                     </Button>
 
                     {apiLoading && (
-                      <Button variant="destructive" size="sm" type="button" onClick={() => cancel()}>
+                      <Button className={`${gradientOutline} px-3 py-2`} size="sm" type="button" onClick={() => cancel()}>
                         Cancel upload
                       </Button>
                     )}
                   </div>
 
-                  <p className="text-xs text-muted-foreground mt-3">Drag & drop or click to upload. Max 5MB. Images only.</p>
+                  <p className={`text-xs mt-3 ${subText}`}>Drag & drop or click to upload. Max 5MB. Images only.</p>
 
                   {apiLoading && (
-                    <div className="mt-2 text-xs text-muted-foreground">Uploading... {progress}%</div>
+                    <div className={`mt-2 text-xs ${subText}`}>Uploading... {progress}%</div>
                   )}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Button variant="outline" className="w-full" onClick={() => toast({ title: "Social signup", description: "Social login not wired in demo." })}>
+                <Button className={`w-full ${gradientOutline}`} onClick={() => toast({ title: "Social signup", description: "Social login not wired in demo." })}>
                   <Chrome className="w-4 h-4 mr-2" /> Continue with Google
                 </Button>
-                <Button variant="outline" className="w-full" onClick={() => toast({ title: "Social signup", description: "Social login not wired in demo." })}>
+                <Button className={`w-full ${gradientOutline}`} onClick={() => toast({ title: "Social signup", description: "Social login not wired in demo." })}>
                   <Github className="w-4 h-4 mr-2" /> Continue with GitHub
                 </Button>
               </div>
@@ -791,7 +880,7 @@ export default function Register() {
                     </div>
                   </div>
                 </div>
-                <div id="email-hint" className="text-xs text-muted-foreground flex items-center gap-2">
+                <div id="email-hint" className={`text-xs flex items-center gap-2 ${subText}`}>
                   <span>{(errors as any).email ?? "We will send a verification code to this address."}</span>
                 </div>
               </div>
@@ -815,7 +904,7 @@ export default function Register() {
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <button
                       type="button"
-                      className="text-xs text-muted-foreground underline"
+                      className={`text-xs underline ${subText}`}
                       onClick={() => {
                         updateField("university", univQuery || form.university);
                         setShowUnivSuggestions(false);
@@ -849,7 +938,7 @@ export default function Register() {
                     </motion.ul>
                   )}
                 </AnimatePresence>
-                <div className="text-xs text-muted-foreground">Can't find your university? Choose "Other" and type it in.</div>
+                <div className={`text-xs ${subText}`}>Can't find your university? Choose "Other" and type it in.</div>
               </div>
 
               {/* Course */}
@@ -941,16 +1030,15 @@ export default function Register() {
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Create a strong password"
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-12"
                     value={form.password}
                     onChange={(e) => updateField("password", e.target.value)}
                     aria-describedby="pw-strength"
                   />
                   <Button
                     type="button"
-                    variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                    className={`absolute right-1 top-1/2 -translate-y-1/2 ${iconBtn}`}
                     onClick={() => setShowPassword((s) => !s)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
@@ -966,7 +1054,7 @@ export default function Register() {
                     <motion.div initial={false} animate={{ width: `${pwStrength.score}%` }} className="h-2 bg-gradient-to-r from-amber-400 to-green-400" />
                   </div>
                 </div>
-                <div className="text-xs text-muted-foreground">Use a mix of letters, numbers & symbols for best strength.</div>
+                <div className={`text-xs ${subText}`}>Use a mix of letters, numbers & symbols for best strength.</div>
               </div>
 
               {/* Confirm */}
@@ -977,16 +1065,16 @@ export default function Register() {
                   <Input
                     type={showConfirmPassword ? "text" : "password"}
                     placeholder="Repeat your password"
-                    className="pl-10 pr-10"
+                    className="pl-10 pr-12"
                     value={form.confirmPassword}
                     onChange={(e) => updateField("confirmPassword", e.target.value)}
                   />
                   <Button
                     type="button"
-                    variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8"
+                    className={`absolute right-1 top-1/2 -translate-y-1/2 ${iconBtn}`}
                     onClick={() => setShowConfirmPassword((s) => !s)}
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                   >
                     {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </Button>
@@ -997,7 +1085,7 @@ export default function Register() {
               {/* Terms & consent */}
               <div className="md:col-span-2 flex items-start gap-3">
                 <input id="consent" type="checkbox" className="rounded mt-1" checked={form.consent} onChange={(e) => updateField("consent", e.target.checked)} />
-                <div className="text-xs text-muted-foreground">
+                <div className={`text-xs ${subText}`}>
                   I agree to the{" "}
                   <button type="button" className="text-primary underline" onClick={() => setTermsOpen(true)}>Terms of Service</button>{" "}
                   and{" "}
@@ -1008,7 +1096,7 @@ export default function Register() {
 
               {/* Submit */}
               <div className="md:col-span-2">
-                <Button type="submit" className="w-full" size="lg" disabled={apiLoading}>
+                <Button type="submit" className={`w-full ${filledBtn}`} size="lg" disabled={apiLoading}>
                   {apiLoading ? (
                     <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
                   ) : (
@@ -1023,7 +1111,7 @@ export default function Register() {
 
           {/* footer */}
           <div className="text-center mt-6">
-            <p className="text-sm text-muted-foreground">
+            <p className={`text-sm ${subText}`}>
               Already have an account?{" "}
               <Link to="/login" className="text-primary hover:underline font-medium">Sign in</Link>
             </p>
@@ -1044,14 +1132,14 @@ export default function Register() {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">Verify your email</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className={`text-lg font-semibold ${titleText}`}>Verify your email</h3>
+                  <p className={`text-sm ${subText}`}>
                     Enter the 6-digit code sent to <strong>{form.email}</strong>
                   </p>
                 </div>
-                <button className="p-1 rounded-md" onClick={() => setOtpOpen(false)} aria-label="Close">
+                <Button size="icon" className={iconBtn} onClick={() => setOtpOpen(false)} aria-label="Close">
                   <X className="w-5 h-5" />
-                </button>
+                </Button>
               </div>
 
               <div className="mt-4">
@@ -1081,7 +1169,7 @@ export default function Register() {
                 {verifyError && <div className="mt-2 text-xs text-rose-400 text-center">{verifyError}</div>}
 
                 <div className="flex items-center justify-between mt-4">
-                  <div className="text-xs text-muted-foreground">
+                  <div className={`text-xs ${subText}`}>
                     Didn't get it?{" "}
                     <button className="underline text-primary" onClick={resendOtp} disabled={otpResendCooldown > 0}>
                       {otpResendCooldown > 0 ? `Resend in ${otpResendCooldown}s` : "Resend"}
@@ -1089,8 +1177,8 @@ export default function Register() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" onClick={() => setOtpOpen(false)}>Cancel</Button>
-                    <Button onClick={verifyOtp} disabled={verifyLoading || otpValue.length !== 6}>
+                    <Button className={gradientOutline} onClick={() => setOtpOpen(false)}>Cancel</Button>
+                    <Button className={filledBtn} onClick={verifyOtp} disabled={verifyLoading || otpValue.length !== 6}>
                       {verifyLoading ? (
                         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
                       ) : (
@@ -1100,7 +1188,7 @@ export default function Register() {
                   </div>
                 </div>
 
-                <div className="mt-3 text-center text-xs text-muted-foreground">
+                <div className={`mt-3 text-center text-xs ${subText}`}>
                   Tip: You can paste the full code (ctrl+v) into any input.
                 </div>
               </div>
@@ -1116,18 +1204,18 @@ export default function Register() {
             <div className="absolute inset-0 bg-black/40" onClick={() => setTermsOpen(false)} />
             <motion.div initial={{ scale: 0.98 }} animate={{ scale: 1 }} exit={{ scale: 0.98 }} className="bg-background rounded-lg p-6 z-50 w-full max-w-3xl max-h-[80vh] overflow-auto">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Terms & Privacy</h2>
-                <button onClick={() => setTermsOpen(false)} aria-label="Close"><X className="w-5 h-5" /></button>
+                <h2 className={`text-xl font-semibold ${titleText}`}>Terms & Privacy</h2>
+                <Button size="icon" className={iconBtn} onClick={() => setTermsOpen(false)} aria-label="Close"><X className="w-5 h-5" /></Button>
               </div>
-              <div className="mt-4 text-sm text-muted-foreground space-y-4">
+              <div className={`mt-4 text-sm space-y-4 ${subText}`}>
                 <p><strong>Short version:</strong> This is a demo. Replace this with your real Terms & Privacy copy before production.</p>
                 <p>— We collect basic profile information to enable collaboration and sharing among students. We never sell personal data.</p>
                 <p>— You can request data deletion anytime from your profile settings.</p>
                 <p>— For analytics and spam prevention we may use third-party services (list them here).</p>
-                <p className="text-xs text-muted-foreground">Long legal copy goes here...</p>
+                <p className="text-xs">Long legal copy goes here...</p>
               </div>
               <div className="mt-6 text-right">
-                <Button onClick={() => setTermsOpen(false)}>Got it</Button>
+                <Button className={filledBtn} onClick={() => setTermsOpen(false)}>Got it</Button>
               </div>
             </motion.div>
           </motion.div>

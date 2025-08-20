@@ -39,6 +39,10 @@ class Resource(models.Model):
     semester = models.CharField(max_length=64)
     course_code = models.CharField(max_length=64, blank=True, null=True)
     tags = models.JSONField(default=list, blank=True)
+    downloads_count = models.BigIntegerField(default=0)
+    rating_avg = models.FloatField(default=0.0)
+    rating_count = models.PositiveIntegerField(default=0)
+    pages = models.PositiveIntegerField(null=True, blank=True)
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -70,12 +74,14 @@ class ResourceFile(models.Model):
     file = models.FileField(upload_to=user_upload_path, blank=True, null=True)
     file_url = models.TextField(blank=True, null=True)  # external storage URL
     file_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    downloads_count = models.BigIntegerField(default=0)  # per-file count
 
     name = models.CharField(max_length=512)
     size = models.BigIntegerField(null=True, blank=True)
     mime_type = models.CharField(max_length=128, blank=True, null=True)
     sha256 = models.CharField(max_length=64, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
+    pages = models.PositiveIntegerField(null=True, blank=True)
 
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
 
@@ -101,6 +107,26 @@ class ResourceFile(models.Model):
         self.is_verified = True
         self.save(update_fields=["is_verified"])
 
+class ResourceRating(models.Model):
+    """
+    One rating per user per resource, 1-5 stars.
+    """
+    resource = models.ForeignKey(Resource, related_name="ratings", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name="resource_ratings", on_delete=models.CASCADE)
+    value = models.PositiveSmallIntegerField()  # 1..5
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("resource", "user")
+        indexes = [
+            models.Index(fields=["resource"]),
+            models.Index(fields=["user"]),
+        ]
+
+    def clean(self):
+        if not 1 <= self.value <= 5:
+            raise ValueError("Rating must be between 1 and 5")
 
 # ----------------------------------------------------------------------
 # UploadSession

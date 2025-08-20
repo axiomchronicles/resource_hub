@@ -31,6 +31,8 @@ const MyLibrary = lazy(() => import("./pages/MyLibrary"));
 const Community = lazy(() => import("./pages/Community"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Landing = lazy(() => import("./pages/Landing"));
+const Aurora = lazy(() => import("./components/Aurora"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,8 +61,17 @@ function App() {
             <TooltipProvider delayDuration={300}>
               <TopProgressPro height={3} rainbow showSpinner />
               <div className="min-h-screen bg-background">
+                <Aurora />
                 <Routes>
                   {/* Auth routes can stay lazy — they replace full content area */}
+                  <Route
+                    path="/landing"
+                    element={
+                        <Suspense fallback={<PageSkeleton />}>
+                          <Landing />
+                        </Suspense>
+                    }
+                  />
                   <Route
                     path="login"
                     element={

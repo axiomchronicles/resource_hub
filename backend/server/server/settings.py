@@ -30,6 +30,9 @@ CSRF_COOKIE_HTTPONLY = False   # allow JS to read cookie (important for React)
 
 ALLOWED_HOSTS = []
 
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = "ALLOWALL"  # ⚠️ global setting (be careful)
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -263,3 +266,5 @@ SESSION_COOKIE_SAMESITE = "None"
 SESSION_COOKIE_SECURE = True   # required if using SameSite=None (needs HTTPS in prod)
 CSRF_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SECURE = True
+
+CSP_FRAME_ANCESTORS = ["'self'", "http://localhost:8080", "http://127.0.0.1:8080"]
