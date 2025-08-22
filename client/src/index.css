@@ -316,3 +316,24 @@ All colors MUST be HSL. Beautiful gradients and modern SaaS aesthetic.
       stroke           550ms cubic-bezier(.2,.8,.2,1) !important;
   }
 }
+
+/* Chrome, Edge, Safari */
+.scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar::-webkit-scrollbar-thumb {
+  background-color: #6366f1; /* Tailwind indigo-500 */
+  border-radius: 9999px;
+}
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #4f46e5; /* Tailwind indigo-600 */
+}
+
+/* Firefox */
+.scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #6366f1 transparent;
+}

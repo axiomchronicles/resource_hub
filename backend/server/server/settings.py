@@ -28,7 +28,7 @@ DEBUG = True
 
 CSRF_COOKIE_HTTPONLY = False   # allow JS to read cookie (important for React)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "ALLOWALL"  # ⚠️ global setting (be careful)

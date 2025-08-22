@@ -44,6 +44,17 @@ const navItems = [
   { name: "Notifications", href: "/notifications", icon: Bell },
 ];
 
+// ---------------- design tokens you provided ----------------
+const filledBtn =
+"bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600 text-white shadow-[0_10px_30px_-10px_rgba(79,70,229,0.7)] ring-1 ring-black/5 dark:ring-white/10 border-0 hover:opacity-95 transition-all";
+const iconBtn = `${filledBtn} !w-10 !h-10 p-0 rounded-xl`;
+const gradientOutline =
+"relative bg-transparent text-slate-700 dark:text-indigo-200 border border-slate-300/40 dark:border-indigo-300/20 before:absolute before:inset-0 before:rounded-[inherit] before:p-[1px] before:bg-gradient-to-r before:from-indigo-500/40 before:via-fuchsia-500/40 before:to-cyan-500/40 before:-z-10";
+const subText = "text-slate-700/80 dark:text-indigo-200/75";
+const titleText = "text-slate-900 dark:text-indigo-100";
+const h1Grad =
+"bg-clip-text text-transparent bg-[length:200%_100%] bg-gradient-to-r from-indigo-700 via-indigo-800 to-cyan-700 dark:from-indigo-200 dark:via-indigo-400 dark:to-cyan-200";
+
 /* Segmented theme toggle */
 function ThemeSegmented() {
   const { mode, setMode } = useTheme();
@@ -180,27 +191,27 @@ export const Navigation = () => {
     : "RF";
 
   return (
-    <motion.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
-        isScrolled
-          ? "backdrop-blur-md bg-[hsl(var(--card)/0.72)] border-b border-[hsl(var(--border))]"
-          : "bg-transparent"
-      )}
-    >
+<motion.nav
+  initial={{ y: -100 }}
+  animate={{ y: 0 }}
+  className={cn(
+    "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+    isScrolled
+      ? "backdrop-blur-md bg-[hsl(var(--card)/0.72)] border-b border-[hsl(var(--border))]"
+      : "bg-transparent",
+    "bg-[radial-gradient(40rem_20rem_at_top,theme(colors.indigo.500/8),transparent),radial-gradient(30rem_20rem_at_bottom_right,theme(colors.fuchsia.500/8),transparent)]"
+  )}
+>
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm bg-gradient-to-br from-indigo-600 to-sky-400">
-              <GraduationCap className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-sky-400 bg-clip-text text-transparent">
-              ResourceFinder
-            </span>
-          </Link>
+          {/* Logo */}
+<Link to="/" className="flex items-center gap-3">
+<div className={`${filledBtn} w-10 h-10 rounded-2xl flex items-center justify-center`}>
+<GraduationCap className="w-6 h-6 text-white" />
+</div>
+<span className={`text-xl font-semibold ${h1Grad}`}>ResourceFinder</span>
+</Link>
 
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-4 flex-1 justify-center">

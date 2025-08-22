@@ -1,5 +1,4 @@
-// File: components/QuickPreviewDrawer.tsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, lazy } from "react";
 import { motion } from "framer-motion";
 import {
   Drawer,
@@ -33,6 +32,8 @@ import {
 } from "lucide-react";
 import { useAppStore } from "@/stores/appStore";
 import { useToast } from "@/hooks/use-toast";
+
+const Aurora = lazy(() => import("@/components/Aurora"));
 
 export type ResourceFile = {
   fileId?: string;
@@ -75,6 +76,18 @@ interface QuickPreviewDrawerProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+// ---------------- design tokens you provided ----------------
+const filledBtn =
+  "bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600 text-white shadow-[0_10px_30px_-10px_rgba(79,70,229,0.7)] ring-1 ring-black/5 dark:ring-white/10 border-0 hover:opacity-95 transition-all";
+const iconBtn = `${filledBtn} !w-10 !h-10 p-0 rounded-xl`;
+const gradientOutline =
+  "relative bg-transparent text-slate-700 dark:text-indigo-200 border border-slate-300/40 dark:border-indigo-300/20 before:absolute before:inset-0 before:rounded-[inherit] before:p-[1px] before:bg-gradient-to-r before:from-indigo-500/40 before:via-fuchsia-500/40 before:to-cyan-500/40 before:-z-10";
+const subText = "text-slate-700/80 dark:text-indigo-200/75";
+const titleText = "text-slate-900 dark:text-indigo-100";
+const h1Grad =
+  "bg-clip-text text-transparent bg-[length:200%_100%] bg-gradient-to-r from-indigo-700 via-indigo-800 to-cyan-700 dark:from-indigo-200 dark:via-indigo-400 dark:to-cyan-200";
+
 
 /* ----------------------------- utilities ----------------------------- */
 
@@ -491,8 +504,6 @@ export const QuickPreviewDrawer: React.FC<QuickPreviewDrawerProps> = ({
       );
     }
 
-    console.log("Rendering preview for resource:", resource.owner_profile_pic);
-
     // pdf
     if (fileUrl && ((fileMime && fileMime.includes("pdf")) || fileUrl.toLowerCase().endsWith(".pdf"))) {
       return (
@@ -638,16 +649,22 @@ export const QuickPreviewDrawer: React.FC<QuickPreviewDrawerProps> = ({
     total <= 0 ? 0 : Math.round((count / total) * 100);
 
   return (
+    // NOTE: main fix is here — make DrawerContent a column flex container and ensure the inner
+    // content area can grow and scroll. This prevents long descriptions from overflowing and
+    // keeps all controls reachable.
     <Drawer open={isOpen} onOpenChange={onClose}>
-      <DrawerContent className="max-h-[90vh]">
-        <div className="mx-auto w-full max-w-6xl">
+      <DrawerContent className="max-h-[90vh] bg-[radial-gradient(40rem_20rem_at_top,theme(colors.indigo.500/8),transparent),radial-gradient(30rem_20rem_at_bottom_right,theme(colors.fuchsia.500/8),transparent)] flex flex-col">
+        <Aurora />
+
+        {/* Make this wrapper flex-1 + overflow-y-auto so content can scroll when tall */}
+        <div className="mx-auto w-full max-w-6xl flex-1 overflow-y-auto scrollbar">
           <DrawerHeader className="border-b">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <DrawerTitle className="text-left text-xl font-bold">
+                <DrawerTitle className={`${h1Grad}text-left text-xl font-bold`}>
                   {resource?.title}
                 </DrawerTitle>
-                <DrawerDescription className="text-left mt-2">
+                <DrawerDescription className="text-left mt-2 break-words whitespace-pre-wrap">
                   {resource?.description}
                 </DrawerDescription>
               </div>
@@ -675,7 +692,7 @@ export const QuickPreviewDrawer: React.FC<QuickPreviewDrawerProps> = ({
                   <Share2 className="w-4 h-4" />
                 </Button>
 
-                <Button onClick={handleDownload} size="sm" title="Download file">
+                <Button onClick={handleDownload} size="sm" title="Download file" className={`flex-1 ${filledBtn}`}>
                   <Download className="w-4 h-4 mr-2" /> Download
                 </Button>
 
@@ -737,21 +754,19 @@ export const QuickPreviewDrawer: React.FC<QuickPreviewDrawerProps> = ({
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-4">
-<div className="p-4 bg-muted/50 rounded-xl hover:bg-muted/70 transition-colors">
-  <div className="flex items-center justify-center gap-2">
-    <div className="p-2 rounded-full bg-muted flex items-center justify-center">
-      <Eye className="w-4 h-4 text-muted-foreground" />
-    </div>
-    <span className="text-xl font-semibold tabular-nums">
-      {resource?.total_downloads ?? 0}
-    </span>
-  </div>
-  <p className="text-xs text-muted-foreground text-center mt-2 tracking-wide uppercase">
-    Downloads
-  </p>
-</div>
-
-
+                  <div className="p-4 bg-muted/50 rounded-xl hover:bg-muted/70 transition-colors">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="p-2 rounded-full bg-muted flex items-center justify-center">
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <span className="text-xl font-semibold tabular-nums">
+                        {resource?.total_downloads ?? 0}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center mt-2 tracking-wide uppercase">
+                      Downloads
+                    </p>
+                  </div>
                   {/* --- Responsive Rating Card (meter + interactive stars) --- */}
                   <div className="p-3 bg-muted/50 rounded-lg w-full min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -914,7 +929,7 @@ export const QuickPreviewDrawer: React.FC<QuickPreviewDrawerProps> = ({
 
                 {/* Actions */}
                 <div className="space-y-2">
-                  <Button className="w-full" onClick={handleDownload}>
+                  <Button className={`w-full ${filledBtn}`} onClick={handleDownload}>
                     <Download className="w-4 h-4 mr-2" /> Download
                     {firstFileSize ? ` (${firstFileSize})` : ""}
                   </Button>

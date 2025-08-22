@@ -120,20 +120,41 @@ class ResourceSerializer(serializers.ModelSerializer):
 
 
 class SearchResultSerializer(serializers.Serializer):
-    # (unchanged except if you want to include avg/rating_count as you already did)
     id = serializers.UUIDField()
     title = serializers.CharField()
     type = serializers.CharField()
     subject = serializers.CharField(allow_blank=True, required=False)
     semester = serializers.CharField(allow_blank=True, required=False)
+    course_code = serializers.CharField(allow_blank=True, required=False)
+    tags = serializers.ListField(
+        child=serializers.CharField(), required=False
+    )
     preview = serializers.CharField(allow_blank=True, required=False)
-    first_file_url = serializers.CharField(allow_blank=True, required=False)
-    first_mime_type = serializers.CharField(allow_blank=True, required=False)
+    description = serializers.CharField(allow_blank=True, required=False)
     created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField(required=False)
+
+    # Owner fields
     owner_name = serializers.CharField(allow_blank=True, required=False)
+    owner_profile_pic = serializers.CharField(allow_blank=True, required=False)
+
+    # Stats
     total_downloads = serializers.IntegerField(required=False)
     avg_rating = serializers.FloatField(required=False)
     rating_count = serializers.IntegerField(required=False)
     total_size_bytes = serializers.IntegerField(required=False)
     total_size_human = serializers.CharField(required=False)
     file_count = serializers.IntegerField(required=False)
+
+    # File info
+    first_file_url = serializers.CharField(allow_blank=True, required=False)
+    first_file_name = serializers.CharField(allow_blank=True, required=False)
+    first_file_mime = serializers.CharField(allow_blank=True, required=False)
+    first_mime_type = serializers.CharField(allow_blank=True, required=False)
+
+    # User-specific
+    user_rating = serializers.IntegerField(required=False, allow_null=True)
+    pages = serializers.IntegerField(required=False)
+
+    # Related files
+    files = ResourceFileLiteSerializer(many=True, required=False)

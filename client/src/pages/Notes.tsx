@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SearchBar } from "@/components/SearchBar";
+import  SearchBar from "@/components/SearchBar";
 import { useToast } from "@/hooks/use-toast";
 import { QuickPreviewDrawer } from "@/components/QuickPreviewDrawer";
 
@@ -32,7 +32,7 @@ const gradientOutline =
 const subText = "text-slate-700/80 dark:text-indigo-200/75";
 const titleText = "text-slate-900 dark:text-indigo-100";
 const h1Grad =
-  "bg-clip-text text-transparent bg-[length:200%_100%] bg-gradient-to-r from-indigo-700 via-indigo-800 to-cyan-700 dark:from-indigo-200 dark:via-indigo-400 dark:to-cyan-200";
+  "bg-clip-text text-transparent bg-[length:200%_100%] bg-gradient-to-r from-indigo-700 via-indigo-800 to-cyan-700 dark:from-indigo-200 dark:via-indigo-400 dark:to-cyan-200 py-1";
 
 /* ------------------------------ SVG FX & Backdrops ------------------------------ */
 const FXDefs = React.memo(function FXDefs() {
@@ -319,7 +319,7 @@ export default function Notes() {
       <div className="container mx-auto px-4 relative z-10">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-          <h1 className={`text-4xl md:text-5xl font-bold mb-4 ${titleText}`}>Study Notes</h1>
+          <h1 className={`text-4xl md:text-5xl font-bold mb-4 ${h1Grad}`}>Study Notes</h1>
           <p className={`text-xl ${subText} mb-6`}>Discover comprehensive study materials shared by students</p>
           <div className="max-w-2xl">
             <SearchBar placeholder="Search notes by title, subject, or tags..." value={query} onChange={(e:any) => setQuery(e.target.value)} />
@@ -395,7 +395,7 @@ export default function Notes() {
                     <div className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
-                          <h3 className="font-bold text-lg mb-2 line-clamp-2">{note.title}</h3>
+                          <h3 className={`font-bold text-lg mb-2 line-clamp-2 ${h1Grad}`}>{note.title}</h3>
                           <div className="flex items-center gap-2 mb-2">
                             {note.subject && <Badge variant="secondary">{note.subject}</Badge>}
                             {note.semester && <Badge variant="outline">{note.semester} Sem</Badge>}

@@ -386,7 +386,7 @@ class SearchAPIView(APIView):
     Lightweight results for typeahead + chips.
     """
     permission_classes = [permissions.AllowAny]
- 
+
     def get(self, request, *args, **kwargs):
         q = (request.query_params.get("q") or "").strip()
         if not q:
@@ -419,11 +419,10 @@ class SearchAPIView(APIView):
         results: List[dict] = []
         for resource in qs:
             f = resource.files.first()
-            # Build absolute URL if we have a local file
             if f and f.file and hasattr(f.file, "url"):
                 abs_first_url = request.build_absolute_uri(f.file.url)
             else:
-                abs_first_url = resource.first_file_url or None
+                abs_first_url = getattr(resource, "first_file_url", None)
 
             # Type for icon
             rtype = mime_to_type(
@@ -442,20 +441,53 @@ class SearchAPIView(APIView):
                     "type": rtype,
                     "subject": resource.subject,
                     "semester": resource.semester,
+                    "course_code": resource.course_code,
+                    "tags": resource.tags or [],
                     "preview": preview_text,
-                    "first_file_url": abs_first_url,
-                    "first_mime_type": getattr(resource, "first_file_mime", None),
+                    "description": resource.description,
                     "created_at": resource.created_at,
-                    # New goodies:
-                    "owner_name": (resource.owner.get_full_name() or resource.owner.username) if resource.owner_id else "Unknown",
+                    "updated_at": resource.updated_at,
+
+                    # Owner fields
+                    "owner_name": (
+                        resource.owner.get_full_name() or resource.owner.username
+                    ) if resource.owner_id else "Unknown",
+                    "owner_profile_pic": self.get_owner_profile_pic(resource, request),
+
+                    # Stats
                     "total_downloads": getattr(resource, "total_downloads", 0) or 0,
                     "avg_rating": getattr(resource, "avg_rating", 0.0) or 0.0,
                     "rating_count": getattr(resource, "rating_count", 0) or 0,
                     "total_size_bytes": getattr(resource, "total_size_bytes", 0) or 0,
                     "total_size_human": _human_bytes(getattr(resource, "total_size_bytes", 0) or 0),
                     "file_count": getattr(resource, "file_count", 0) or 0,
+
+                    # File info
+                    "first_file_url": abs_first_url,
+                    "first_file_name": getattr(resource, "first_file_name", None),
+                    "first_file_mime": getattr(resource, "first_file_mime", None),
+                    "first_mime_type": getattr(resource, "first_mime_type", None),
+
+                    # User-specific
+                    "user_rating": getattr(resource, "user_rating", None),
+                    "pages": getattr(resource, "pages", None),
+                    "files": getattr(resource, "files", None),
+
+                    # Related files (lite serializer)
                 }
             )
 
         ser = SearchResultSerializer(results, many=True)
         return Response(ser.data, status=status.HTTP_200_OK)
+    
+    def get_owner_profile_pic(self, obj, request):
+        u = getattr(obj, "owner", None)
+        if not u or not hasattr(u, "profile_pic"):
+            return None
+        pic = getattr(u, "profile_pic", None)
+        if not pic or not pic.file:
+            return None
+        try:
+            return request.build_absolute_uri(pic.file.url) if request else pic.file.url
+        except Exception:
+            return None

@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Play, 
-  Pause, 
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Play,
   RotateCcw,
   Award,
   BarChart3,
@@ -15,15 +14,59 @@ import {
   TrendingUp,
   ArrowRight,
   ChevronRight,
-  Users
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
+/************************
+ * Accent Tokens (Indigo)
+ ************************/
+const filledBtn =
+  "bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-cyan-600 text-white shadow-[0_10px_30px_-10px_rgba(79,70,229,0.7)] ring-1 ring-black/5 dark:ring-white/10 border-0 hover:opacity-95 transition-all";
+const iconBtn = `${filledBtn} !w-10 !h-10 p-0 rounded-xl`;
+// Neutralized outline so the page itself isn't indigo-toned
+const gradientOutline =
+  "relative bg-transparent text-slate-700 dark:text-slate-200 border border-slate-300/40 dark:border-slate-700/60 before:absolute before:inset-0 before:rounded-[inherit] before:p-[1px] before:bg-[linear-gradient(90deg,rgba(255,255,255,0.25),rgba(255,255,255,0.06))] before:opacity-60 before:-z-10";
+const subText = "text-slate-700/80 dark:text-indigo-200/75";
+const titleText = "text-slate-900 dark:text-indigo-100";
+const h1Grad =
+  "bg-clip-text text-transparent bg-[length:200%_100%] bg-gradient-to-r from-indigo-700 via-indigo-800 to-cyan-700 dark:from-indigo-200 dark:via-indigo-400 dark:to-cyan-200";
+
+/************************
+ * Optional FX (kept neutral)
+ ************************/
+const FXDefs = React.memo(function FXDefs() {
+  // kept for future, not strictly required
+  return (
+    <svg className="absolute pointer-events-none w-0 h-0">
+      <defs></defs>
+    </svg>
+  );
+});
+
+const NeutralBackdrop = React.memo(function NeutralBackdrop() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Subtle floor grid only */}
+      <div
+        className="gpu absolute bottom-[-14%] left-1/2 h-[38vh] w-[140vw] -translate-x-1/2 origin-top"
+        style={{ transform: "rotateX(60deg) translateZ(-100px)" }}
+      >
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:36px_36px]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent" />
+      </div>
+      <div className="absolute inset-0 opacity-[0.035] bg-[radial-gradient(circle,white_1px,transparent_1.2px)] [background-size:18px_18px]" />
+    </div>
+  );
+});
+
+/*********************
+ * Types
+ *********************/
 interface Question {
   id: string;
   question: string;
@@ -39,7 +82,7 @@ interface MockTest {
   id: string;
   title: string;
   subject: string;
-  duration: number; // in minutes
+  duration: number; // minutes
   totalQuestions: number;
   difficulty: "easy" | "medium" | "hard";
   topics: string[];
@@ -49,6 +92,9 @@ interface MockTest {
   questions: Question[];
 }
 
+/*********************
+ * Sample Data
+ *********************/
 const mockTests: MockTest[] = [
   {
     id: "1",
@@ -67,22 +113,24 @@ const mockTests: MockTest[] = [
         question: "What is the time complexity of binary search?",
         options: ["O(n)", "O(log n)", "O(n²)", "O(1)"],
         correctAnswer: 1,
-        explanation: "Binary search divides the search space in half with each comparison, resulting in O(log n) time complexity.",
+        explanation:
+          "Binary search divides the search space in half with each comparison, resulting in O(log n) time complexity.",
         difficulty: "easy",
         subject: "Computer Science",
-        topic: "Searching"
+        topic: "Searching",
       },
       {
         id: "q2",
         question: "Which data structure uses LIFO (Last In, First Out) principle?",
         options: ["Queue", "Stack", "Array", "Linked List"],
         correctAnswer: 1,
-        explanation: "Stack follows LIFO principle where the last element added is the first one to be removed.",
+        explanation:
+          "Stack follows LIFO principle where the last element added is the first one to be removed.",
         difficulty: "easy",
         subject: "Computer Science",
-        topic: "Data Structures"
-      }
-    ]
+        topic: "Data Structures",
+      },
+    ],
   },
   {
     id: "2",
@@ -95,7 +143,28 @@ const mockTests: MockTest[] = [
     description: "Master the core concepts of object-oriented programming",
     attempts: 892,
     averageScore: 78,
-    questions: []
+    questions: [
+      {
+        id: "q1-oop",
+        question: "Which OOP principle hides internal details and shows only functionality?",
+        options: ["Encapsulation", "Abstraction", "Polymorphism", "Inheritance"],
+        correctAnswer: 1,
+        explanation: "Abstraction exposes only the essential features while hiding the implementation.",
+        difficulty: "easy",
+        subject: "Computer Science",
+        topic: "Abstraction",
+      },
+      {
+        id: "q2-oop",
+        question: "What allows a subclass to provide a specific implementation of a method declared in its superclass?",
+        options: ["Overloading", "Overriding", "Shadowing", "Hiding"],
+        correctAnswer: 1,
+        explanation: "Method overriding lets a subclass change the behavior of a superclass method.",
+        difficulty: "easy",
+        subject: "Computer Science",
+        topic: "Polymorphism",
+      },
+    ],
   },
   {
     id: "3",
@@ -108,15 +177,40 @@ const mockTests: MockTest[] = [
     description: "Comprehensive test on database design and optimization",
     attempts: 567,
     averageScore: 65,
-    questions: []
-  }
+    questions: [
+      {
+        id: "q1-db",
+        question: "Which normal form removes transitive dependencies?",
+        options: ["1NF", "2NF", "3NF", "BCNF"],
+        correctAnswer: 2,
+        explanation:
+          "Third Normal Form (3NF) ensures non-key attributes are not transitively dependent on the primary key.",
+        difficulty: "medium",
+        subject: "Computer Science",
+        topic: "Normalization",
+      },
+      {
+        id: "q2-db",
+        question: "A clustered index determines the physical order of data in a table.",
+        options: ["True", "False"],
+        correctAnswer: 0,
+        explanation: "In most DBMS, clustered indexes store rows in the same order as the index.",
+        difficulty: "easy",
+        subject: "Computer Science",
+        topic: "Indexing",
+      },
+    ],
+  },
 ];
 
+/*********************
+ * Component
+ *********************/
 export default function MockTests() {
   const [selectedTest, setSelectedTest] = useState<MockTest | null>(null);
   const [isTestActive, setIsTestActive] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<{[key: string]: number}>({});
+  const [answers, setAnswers] = useState<{ [key: string]: number }>({});
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -128,7 +222,7 @@ export default function MockTests() {
     let interval: NodeJS.Timeout;
     if (isTimerRunning && timeRemaining > 0) {
       interval = setInterval(() => {
-        setTimeRemaining(prev => {
+        setTimeRemaining((prev) => {
           if (prev <= 1) {
             handleSubmitTest();
             return 0;
@@ -143,10 +237,18 @@ export default function MockTests() {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   const startTest = (test: MockTest) => {
+    if (!test.questions || test.questions.length === 0) {
+      toast({
+        title: "No questions yet",
+        description: "This test doesn't have questions. Pick another one.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSelectedTest(test);
     setIsTestActive(true);
     setCurrentQuestionIndex(0);
@@ -154,59 +256,50 @@ export default function MockTests() {
     setTimeRemaining(test.duration * 60);
     setIsTimerRunning(true);
     setShowResults(false);
-    toast({
-      title: "Test Started!",
-      description: `Good luck with ${test.title}`,
-    });
+    toast({ title: "Test Started!", description: `Good luck with ${test.title}` });
   };
 
   const handleAnswerSelect = (questionId: string, answerIndex: number) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: answerIndex
-    }));
+    setAnswers((prev) => ({ ...prev, [questionId]: answerIndex }));
   };
 
   const nextQuestion = () => {
     if (selectedTest && currentQuestionIndex < selectedTest.questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      setCurrentQuestionIndex((prev) => prev + 1);
     }
   };
 
   const previousQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
-    }
+    if (currentQuestionIndex > 0) setCurrentQuestionIndex((prev) => prev - 1);
   };
 
   const handleSubmitTest = () => {
     if (!selectedTest) return;
-
     setIsTimerRunning(false);
-    
+
     const correctAnswers = selectedTest.questions.filter(
-      question => answers[question.id] === question.correctAnswer
+      (q) => answers[q.id] === q.correctAnswer
     ).length;
-    
+
     const score = Math.round((correctAnswers / selectedTest.questions.length) * 100);
-    
+
     setTestResults({
       score,
       correctAnswers,
       totalQuestions: selectedTest.questions.length,
       timeTaken: selectedTest.duration * 60 - timeRemaining,
-      breakdown: selectedTest.questions.map(question => ({
-        question: question.question,
-        userAnswer: answers[question.id],
-        correctAnswer: question.correctAnswer,
-        isCorrect: answers[question.id] === question.correctAnswer,
-        explanation: question.explanation
-      }))
+      breakdown: selectedTest.questions.map((q) => ({
+        question: q.question,
+        userAnswer: answers[q.id],
+        correctAnswer: q.correctAnswer,
+        isCorrect: answers[q.id] === q.correctAnswer,
+        explanation: q.explanation,
+      })),
     });
-    
+
     setShowResults(true);
     setIsTestActive(false);
-    
+
     toast({
       title: "Test Completed!",
       description: `You scored ${score}% (${correctAnswers}/${selectedTest.questions.length})`,
@@ -224,130 +317,108 @@ export default function MockTests() {
     setTestResults(null);
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case "easy": return "text-green-500";
-      case "medium": return "text-yellow-500";
-      case "hard": return "text-red-500";
-      default: return "text-gray-500";
-    }
-  };
-
   const getDifficultyBadge = (difficulty: string) => {
     switch (difficulty) {
-      case "easy": return "bg-green-100 text-green-800";
-      case "medium": return "bg-yellow-100 text-yellow-800";
-      case "hard": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "easy":
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+      case "medium":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+      case "hard":
+        return "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     }
   };
 
+  /*********************
+   * Results View
+   *********************/
   if (showResults && testResults) {
     return (
-      <div className="min-h-screen py-8">
+<div className="relative min-h-screen py-8 bg-[radial-gradient(40rem_20rem_at_top,theme(colors.indigo.500/8),transparent),radial-gradient(30rem_20rem_at_bottom_right,theme(colors.fuchsia.500/8),transparent)]">
+        <NeutralBackdrop />
         <div className="container mx-auto px-4 max-w-4xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8"
-          >
-            <div className="w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              <Award className="w-10 h-10 text-white" />
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200/40 dark:border-slate-700/60"
+              style={{
+                background: "radial-gradient(closest-side, rgba(255,255,255,0.85), rgba(148,163,184,0.55))",
+              }}
+            >
+              <Award className="w-10 h-10 text-slate-700 dark:text-slate-200" />
             </div>
-            <h1 className="text-4xl font-bold mb-2">Test Completed!</h1>
-            <p className="text-xl text-muted-foreground">
-              Here are your results for {selectedTest?.title}
-            </p>
+            <h1 className={`text-4xl font-bold mb-2 ${h1Grad}`}>Test Completed!</h1>
+            <p className={`text-xl ${subText}`}>Here are your results for {selectedTest?.title}</p>
           </motion.div>
 
-          {/* Score Summary */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="glass border-white/20 p-8 mb-8">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <Card className={`${gradientOutline} p-8 mb-8`}>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
                 <div>
-                  <div className="text-3xl font-bold text-primary mb-2">
-                    {testResults.score}%
-                  </div>
-                  <div className="text-sm text-muted-foreground">Overall Score</div>
+                  <div className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{testResults.score}%</div>
+                  <div className={`text-sm ${subText}`}>Overall Score</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-green-500 mb-2">
+                  <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-2">
                     {testResults.correctAnswers}
                   </div>
-                  <div className="text-sm text-muted-foreground">Correct Answers</div>
+                  <div className={`text-sm ${subText}`}>Correct Answers</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-muted-foreground mb-2">
-                    {testResults.totalQuestions}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Total Questions</div>
+                  <div className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{testResults.totalQuestions}</div>
+                  <div className={`text-sm ${subText}`}>Total Questions</div>
                 </div>
                 <div>
-                  <div className="text-3xl font-bold text-blue-500 mb-2">
-                    {formatTime(testResults.timeTaken)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Time Taken</div>
+                  <div className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">{formatTime(testResults.timeTaken)}</div>
+                  <div className={`text-sm ${subText}`}>Time Taken</div>
                 </div>
               </div>
             </Card>
           </motion.div>
 
-          {/* Detailed Results */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className="glass border-white/20 p-6">
-              <h3 className="text-xl font-bold mb-6">Detailed Breakdown</h3>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+            <Card className={`${gradientOutline} p-6`}>
+              <h3 className={`text-xl font-bold mb-6 ${titleText}`}>Detailed Breakdown</h3>
               <div className="space-y-6">
                 {testResults.breakdown.map((item: any, index: number) => (
-                  <div key={index} className="border-l-4 border-l-primary/20 pl-4">
+                  <div key={index} className="border-l-4 border-l-slate-300/30 dark:border-l-slate-600/60 pl-4">
                     <div className="flex items-start justify-between mb-2">
-                      <h4 className="font-medium text-sm">{item.question}</h4>
+                      <h4 className="font-medium text-sm text-slate-900 dark:text-slate-100">{item.question}</h4>
                       {item.isCorrect ? (
-                        <CheckCircle className="w-5 h-5 text-green-500 shrink-0 ml-2" />
+                        <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 ml-2" />
                       ) : (
-                        <XCircle className="w-5 h-5 text-red-500 shrink-0 ml-2" />
+                        <XCircle className="w-5 h-5 text-rose-500 shrink-0 ml-2" />
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground mb-2">
-                      <span className={item.isCorrect ? "text-green-500" : "text-red-500"}>
+                    <div className="text-sm">
+                      <span
+                        className={
+                          item.isCorrect
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400"
+                        }
+                      >
                         Your answer: {selectedTest?.questions[index]?.options[item.userAnswer] || "Not answered"}
                       </span>
                       {!item.isCorrect && (
-                        <div className="text-green-500 mt-1">
+                        <div className="text-emerald-600 dark:text-emerald-400 mt-1">
                           Correct answer: {selectedTest?.questions[index]?.options[item.correctAnswer]}
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground bg-muted/30 p-2 rounded">
-                      {item.explanation}
-                    </p>
+                    <p className={`text-xs ${subText} bg-muted/30 p-2 rounded`}>{item.explanation}</p>
                   </div>
                 ))}
               </div>
             </Card>
           </motion.div>
 
-          {/* Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="flex gap-4 justify-center mt-8"
-          >
-            <Button onClick={() => startTest(selectedTest!)} size="lg">
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Retake Test
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="flex gap-4 justify-center mt-8">
+            <Button onClick={() => startTest(selectedTest!)} size="lg" className={filledBtn}>
+              <RotateCcw className="w-4 h-4 mr-2" /> Retake Test
             </Button>
-            <Button variant="outline" onClick={resetTest} size="lg">
-              <ArrowRight className="w-4 h-4 mr-2" />
-              Browse Tests
+            <Button variant="outline" onClick={resetTest} size="lg" className={gradientOutline}>
+              <ArrowRight className="w-4 h-4 mr-2" /> Browse Tests
             </Button>
           </motion.div>
         </div>
@@ -355,35 +426,34 @@ export default function MockTests() {
     );
   }
 
+  /*********************
+   * Active Test View
+   *********************/
   if (isTestActive && selectedTest) {
     const currentQuestion = selectedTest.questions[currentQuestionIndex];
     const progress = ((currentQuestionIndex + 1) / selectedTest.questions.length) * 100;
 
     return (
-      <div className="min-h-screen py-8">
+<div className="relative min-h-screen py-8 bg-[radial-gradient(40rem_20rem_at_top,theme(colors.indigo.500/8),transparent),radial-gradient(30rem_20rem_at_bottom_right,theme(colors.fuchsia.500/8),transparent)]">
+        <NeutralBackdrop />
         <div className="container mx-auto px-4 max-w-4xl">
-          {/* Test Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <Card className="glass border-white/20 p-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+            <Card className={`${gradientOutline} p-6`}>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h1 className="text-2xl font-bold">{selectedTest.title}</h1>
-                  <p className="text-muted-foreground">
+                  <h1 className={`text-2xl font-bold ${h1Grad}`}>{selectedTest.title}</h1>
+                  <p className={subText}>
                     Question {currentQuestionIndex + 1} of {selectedTest.questions.length}
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2 text-lg font-mono">
-                    <Timer className="w-5 h-5 text-primary" />
-                    <span className={timeRemaining < 300 ? "text-red-500" : ""}>
+                    <Timer className="w-5 h-5 text-slate-500" />
+                    <span className={timeRemaining < 300 ? "text-rose-500" : "text-slate-900 dark:text-slate-100"}>
                       {formatTime(timeRemaining)}
                     </span>
                   </div>
-                  <Button variant="outline" size="sm" onClick={handleSubmitTest}>
+                  <Button size="sm" onClick={handleSubmitTest} className={filledBtn}>
                     Submit Test
                   </Button>
                 </div>
@@ -392,16 +462,9 @@ export default function MockTests() {
             </Card>
           </motion.div>
 
-          {/* Question */}
           <AnimatePresence mode="wait">
-            <motion.div
-              key={currentQuestionIndex}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Card className="glass border-white/20 p-8 mb-8">
+            <motion.div key={currentQuestionIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
+              <Card className={`${gradientOutline} p-8 mb-8`}>
                 <div className="mb-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Badge className={getDifficultyBadge(currentQuestion.difficulty)}>
@@ -409,48 +472,42 @@ export default function MockTests() {
                     </Badge>
                     <Badge variant="outline">{currentQuestion.topic}</Badge>
                   </div>
-                  <h2 className="text-xl font-bold leading-relaxed">
-                    {currentQuestion.question}
-                  </h2>
+                  <h2 className={`text-xl font-bold leading-relaxed ${titleText}`}>{currentQuestion.question}</h2>
                 </div>
 
                 <div className="space-y-3">
-                  {currentQuestion.options.map((option, index) => (
-                    <motion.button
-                      key={index}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleAnswerSelect(currentQuestion.id, index)}
-                      className={`w-full p-4 text-left rounded-xl border-2 transition-all duration-200 ${
-                        answers[currentQuestion.id] === index
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-white/20 hover:border-white/40 bg-muted/30"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
-                          answers[currentQuestion.id] === index
-                            ? "border-primary bg-primary text-white"
-                            : "border-muted-foreground"
-                        }`}>
+                  {currentQuestion.options.map((option, index) => {
+                    const active = answers[currentQuestion.id] === index;
+                    return (
+                      <motion.button
+                        key={index}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleAnswerSelect(currentQuestion.id, index)}
+                        className={`w-full p-4 text-left rounded-xl border-2 transition-all duration-200 ${
+                          active
+                            ? "border-slate-300/60 bg-white/10 text-slate-900 dark:text-slate-100"
+                            : "border-white/20 hover:border-white/40 bg-muted/30"
+                        }`}
+                      >
+                        <div
+                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                            active ? "border-slate-300 bg-slate-200 text-slate-900" : "border-slate-400/60"
+                          }`}
+                        >
                           {String.fromCharCode(65 + index)}
                         </div>
-                        <span>{option}</span>
-                      </div>
-                    </motion.button>
-                  ))}
+                        <span className="ml-3">{option}</span>
+                      </motion.button>
+                    );
+                  })}
                 </div>
               </Card>
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation */}
           <div className="flex items-center justify-between">
-            <Button
-              variant="outline"
-              onClick={previousQuestion}
-              disabled={currentQuestionIndex === 0}
-            >
+            <Button variant="outline" onClick={previousQuestion} disabled={currentQuestionIndex === 0} className={gradientOutline}>
               Previous
             </Button>
 
@@ -461,9 +518,9 @@ export default function MockTests() {
                   onClick={() => setCurrentQuestionIndex(index)}
                   className={`w-8 h-8 rounded-full text-sm font-medium transition-all ${
                     index === currentQuestionIndex
-                      ? "bg-primary text-white"
+                      ? "bg-slate-700 text-white"
                       : answers[selectedTest.questions[index].id] !== undefined
-                      ? "bg-green-500 text-white"
+                      ? "bg-emerald-500 text-white"
                       : "bg-muted text-muted-foreground hover:bg-muted-foreground/20"
                   }`}
                 >
@@ -473,13 +530,12 @@ export default function MockTests() {
             </div>
 
             {currentQuestionIndex === selectedTest.questions.length - 1 ? (
-              <Button onClick={handleSubmitTest} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleSubmitTest} className={`${filledBtn} bg-emerald-600 hover:opacity-95`}>
                 Submit Test
               </Button>
             ) : (
-              <Button onClick={nextQuestion}>
-                Next
-                <ChevronRight className="w-4 h-4 ml-1" />
+              <Button onClick={nextQuestion} className={filledBtn}>
+                Next <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             )}
           </div>
@@ -488,41 +544,33 @@ export default function MockTests() {
     );
   }
 
+  /*********************
+   * Catalog View
+   *********************/
   return (
-    <div className="min-h-screen py-8">
+<div className="relative min-h-screen py-8 bg-[radial-gradient(40rem_20rem_at_top,theme(colors.indigo.500/8),transparent),radial-gradient(30rem_20rem_at_bottom_right,theme(colors.fuchsia.500/8),transparent)]">
+      <NeutralBackdrop />
       <div className="container mx-auto px-4">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 flex items-center gap-3">
-            <Target className="w-10 h-10 text-primary" />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <h1 className={`text-4xl md:text-5xl font-bold mb-4 flex items-center gap-3 ${h1Grad}`}>
+            <Target className="w-10 h-10 text-indigo-500" />
             Mock Tests
           </h1>
-          <p className="text-xl text-muted-foreground">
-            Practice with comprehensive mock tests to ace your exams
-          </p>
+          <p className={`text-xl ${subText}`}>Practice with comprehensive mock tests to ace your exams</p>
         </motion.div>
 
-        {/* Stats Overview */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
-        >
+        {/* Stats Overview (neutral icons) */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[
-            { label: "Tests Available", value: "25+", icon: BookOpen, color: "text-blue-500" },
-            { label: "Total Attempts", value: "2.8K", icon: TrendingUp, color: "text-green-500" },
-            { label: "Average Score", value: "74%", icon: BarChart3, color: "text-purple-500" },
-            { label: "Success Rate", value: "89%", icon: Award, color: "text-yellow-500" }
-          ].map((stat, index) => (
-            <Card key={stat.label} className="glass border-white/20 p-6 text-center">
-              <stat.icon className={`w-8 h-8 mx-auto mb-3 ${stat.color}`} />
-              <div className="text-2xl font-bold mb-1">{stat.value}</div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
+            { label: "Tests Available", value: "25+", icon: BookOpen },
+            { label: "Total Attempts", value: "2.8K", icon: TrendingUp },
+            { label: "Average Score", value: "74%", icon: BarChart3 },
+            { label: "Success Rate", value: "89%", icon: Award },
+          ].map((stat) => (
+            <Card key={stat.label} className={`${gradientOutline} p-6 text-center`}>
+              <stat.icon className="w-8 h-8 mx-auto mb-3 text-slate-500" />
+              <div className="text-2xl font-bold mb-1 text-slate-900 dark:text-slate-100">{stat.value}</div>
+              <div className={`text-sm ${subText}`}>{stat.label}</div>
             </Card>
           ))}
         </motion.div>
@@ -530,85 +578,61 @@ export default function MockTests() {
         {/* Mock Tests Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mockTests.map((test, index) => (
-            <motion.div
-              key={test.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -5 }}
-            >
-              <Card className="glass border-white/20 hover:border-white/40 transition-all duration-300 hover:shadow-medium h-full">
+            <motion.div key={test.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ y: -5 }}>
+              <Card className={`${gradientOutline} hover:before:opacity-80 transition-all duration-300 h-full`}>
                 <div className="p-6 flex flex-col h-full">
-                  {/* Header */}
                   <div className="mb-4">
                     <div className="flex items-start justify-between mb-3">
-                      <h3 className="font-bold text-lg leading-tight">{test.title}</h3>
-                      <Badge className={getDifficultyBadge(test.difficulty)}>
-                        {test.difficulty}
-                      </Badge>
+                      <h3 className={`font-bold text-lg leading-tight ${titleText}`}>{test.title}</h3>
+                      <Badge className={getDifficultyBadge(test.difficulty)}>{test.difficulty}</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {test.description}
-                    </p>
+                    <p className={`text-sm ${subText} mb-3`}>{test.description}</p>
                     <Badge variant="secondary">{test.subject}</Badge>
                   </div>
 
-                  {/* Test Info */}
                   <div className="space-y-3 mb-4 flex-1">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
-                        Duration
+                      <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <Clock className="w-4 h-4" /> Duration
                       </span>
-                      <span className="font-medium">{test.duration} min</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{test.duration} min</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-muted-foreground" />
-                        Questions
+                      <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <BookOpen className="w-4 h-4" /> Questions
                       </span>
-                      <span className="font-medium">{test.totalQuestions}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{test.totalQuestions}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-muted-foreground" />
-                        Avg. Score
+                      <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <TrendingUp className="w-4 h-4" /> Avg. Score
                       </span>
-                      <span className="font-medium">{test.averageScore}%</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{test.averageScore}%</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        Attempts
+                      <span className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <Users className="w-4 h-4" /> Attempts
                       </span>
-                      <span className="font-medium">{test.attempts.toLocaleString()}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{test.attempts.toLocaleString()}</span>
                     </div>
                   </div>
 
-                  {/* Topics */}
                   <div className="mb-4">
-                    <h4 className="text-sm font-medium mb-2">Topics Covered</h4>
+                    <h4 className={`text-sm font-medium ${titleText} mb-2`}>Topics Covered</h4>
                     <div className="flex flex-wrap gap-1">
-                      {test.topics.slice(0, 3).map(topic => (
-                        <span key={topic} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-md">
+                      {test.topics.slice(0, 3).map((topic) => (
+                        <span key={topic} className="px-2 py-1 bg-slate-500/10 text-slate-500 dark:text-slate-300 text-xs rounded-md">
                           {topic}
                         </span>
                       ))}
                       {test.topics.length > 3 && (
-                        <span className="px-2 py-1 bg-muted text-xs rounded-md">
-                          +{test.topics.length - 3} more
-                        </span>
+                        <span className="px-2 py-1 bg-muted text-xs rounded-md">+{test.topics.length - 3} more</span>
                       )}
                     </div>
                   </div>
 
-                  {/* Action */}
-                  <Button 
-                    className="w-full"
-                    onClick={() => startTest(test)}
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Start Test
+                  <Button className={`w-full ${filledBtn}`} onClick={() => startTest(test)}>
+                    <Play className="w-4 h-4 mr-2" /> Start Test
                   </Button>
                 </div>
               </Card>
