@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/auth/", include("Authentication.urls", namespace="Authentication")),
     path("api/uploads/", include("Resources.urls", namespace = "Resources")),
     path("api/resources/", include("Notes.urls", namespace = "Notes")),
+    path("api/", include("MockTests.urls", namespace="MockTests")),
     # optionally mount other apps:
     # path("api/auth/", include("rest_framework.urls")),  # browsable login (if enabled)
     path("health/", healthcheck, name="healthcheck"),

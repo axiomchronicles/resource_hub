@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "Authentication",
     "Resources",
     "corsheaders",
+    "MockTests",
     "rest_framework_simplejwt",
     "rest_framework.authtoken",  # enable token model
     "rest_framework_simplejwt.token_blacklist",

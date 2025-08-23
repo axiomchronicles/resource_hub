@@ -1,0 +1,90 @@
+[
+  {
+    "model": "MockTests.mocktest",
+    "pk": "11111111-1111-1111-1111-111111111111",
+    "fields": {
+      "title": "Python Basics",
+      "description": "Test your knowledge of Python fundamentals.",
+      "duration": 30
+    }
+  },
+  {
+    "model": "MockTests.mocktest",
+    "pk": "22222222-2222-2222-2222-222222222222",
+    "fields": {
+      "title": "Data Structures",
+      "description": "Covers arrays, linked lists, stacks, and queues.",
+      "duration": 40
+    }
+  },
+  {
+    "model": "MockTests.mocktest",
+    "pk": "33333333-3333-3333-3333-333333333333",
+    "fields": {
+      "title": "Algorithms",
+      "description": "Covers sorting, searching, and complexity.",
+      "duration": 45
+    }
+  },
+
+  {
+    "model": "MockTests.question",
+    "pk": "aaaa1111-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "fields": {
+      "mocktest": "11111111-1111-1111-1111-111111111111",
+      "text": "What is the output of print(2 ** 3)?",
+      "options": ["5", "6", "8", "9"],
+      "correct_option": 2
+    }
+  },
+  {
+    "model": "mocktests.question",
+    "pk": "aaaa2222-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "fields": {
+      "mocktest": "11111111-1111-1111-1111-111111111111",
+      "text": "Which of these is a mutable data type in Python?",
+      "options": ["tuple", "list", "str", "frozenset"],
+      "correct_option": 1
+    }
+  },
+  {
+    "model": "MockTests.question",
+    "pk": "bbbb1111-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "fields": {
+      "mocktest": "22222222-2222-2222-2222-222222222222",
+      "text": "Which data structure works on FIFO?",
+      "options": ["Stack", "Queue", "Array", "Graph"],
+      "correct_option": 1
+    }
+  },
+  {
+    "model": "MockTests.question",
+    "pk": "bbbb2222-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    "fields": {
+      "mocktest": "22222222-2222-2222-2222-222222222222",
+      "text": "Which of these has O(1) lookup on average?",
+      "options": ["List", "Dictionary", "LinkedList", "Queue"],
+      "correct_option": 1
+    }
+  },
+  {
+    "model": "MockTests.question",
+    "pk": "cccc1111-cccc-cccc-cccc-cccccccccccc",
+    "fields": {
+      "mocktest": "33333333-3333-3333-3333-333333333333",
+      "text": "Which sorting algorithm is stable?",
+      "options": ["QuickSort", "MergeSort", "HeapSort", "SelectionSort"],
+      "correct_option": 1
+    }
+  },
+  {
+    "model": "MockTests.question",
+    "pk": "cccc2222-cccc-cccc-cccc-cccccccccccc",
+    "fields": {
+      "mocktest": "33333333-3333-3333-3333-333333333333",
+      "text": "What is the time complexity of binary search?",
+      "options": ["O(n)", "O(n log n)", "O(log n)", "O(1)"],
+      "correct_option": 2
+    }
+  }
+]
